@@ -54,7 +54,7 @@ public final class GC {
 
   public static GuardedCmd seq(/*@ non_null */ GuardedCmdVec cmds) {
     int n;
-    if (!Main.peepOptGC) {
+    if (!Main.options().peepOptGC) {
       n = cmds.size();
     } else {
       n = 0;
@@ -79,7 +79,7 @@ public final class GC {
 	      cmds.setElementAt(g, n);
 	      n++;
 	      if ((tag != TagConstants.ASSERTCMD ||
-		   !Main.noPeepOptGCAssertFalse) &&
+		   !Main.options().noPeepOptGCAssertFalse) &&
 		  isFalse(((ExprCmd)g).pred)) {
 		// don't keep any further commands, since they won't
 		// be reached anyway
@@ -158,7 +158,7 @@ public final class GC {
   }
 
   public static GuardedCmd choosecmd(GuardedCmd a, GuardedCmd b) {
-    if (Main.peepOptGC) {
+    if (Main.options().peepOptGC) {
       if (a.getTag() == TagConstants.ASSUMECMD && isFalse(((ExprCmd)a).pred)) {
 	return b;
       }
@@ -176,7 +176,7 @@ public final class GC {
   }
 
   public static GuardedCmd trycmd(GuardedCmd c, GuardedCmd a) {
-    if (Main.peepOptGC) {
+    if (Main.options().peepOptGC) {
       if (a.getTag() == TagConstants.RAISECMD) {
 	return c;
       }
@@ -269,7 +269,7 @@ public final class GC {
 				 int locPragmaDecl,
 				 Object aux) {
     Assert.notFalse(locUse != Location.NULL);
-    if (Main.guardedVC && locPragmaDecl != Location.NULL) {
+    if (Main.options().guardedVC && locPragmaDecl != Location.NULL) {
       pred = GuardExpr.make(pred, locPragmaDecl);
     }
     switch( NoWarn.getChkStatus( errorName, locUse, locPragmaDecl) ) {
@@ -278,7 +278,7 @@ public final class GC {
       return assume(pred);
     case TagConstants.CHK_AS_ASSERT:
       LabelInfoToString.recordAnnotationAssumption(locPragmaDecl);
-      return assert(locUse, errorName, pred, locPragmaDecl, aux);
+      return assertPredicate(locUse, errorName, pred, locPragmaDecl, aux);
     case TagConstants.CHK_AS_SKIP:
       return skip();
     default:
@@ -317,7 +317,7 @@ public final class GC {
   //@ requires locPragmaDecl != Location.NULL;
   public static GuardedCmd assumeAnnotation(int locPragmaDecl,
 					    /*@ non_null */ Expr p) {
-    if (Main.guardedVC && locPragmaDecl != Location.NULL) {
+    if (Main.options().guardedVC && locPragmaDecl != Location.NULL) {
       p = GuardExpr.make(p, locPragmaDecl);
     }
     LabelInfoToString.recordAnnotationAssumption(locPragmaDecl);
@@ -325,7 +325,7 @@ public final class GC {
   }
 
   public static GuardedCmd assume(Expr p) {
-    if (Main.peepOptGC && isBooleanLiteral(p, true)) {
+    if (Main.options().peepOptGC && isBooleanLiteral(p, true)) {
       return skip();
     }
     return ExprCmd.make(TagConstants.ASSUMECMD, p, Location.NULL);
@@ -343,11 +343,11 @@ public final class GC {
   private static int assertContinueCounter = 0;
 
   //@ requires locUse != Location.NULL;
-  private static GuardedCmd assert(int locUse,
-				   int errorName, Expr pred,
-				   int locPragmaDecl,
-				   Object aux) {
-    if (Main.assertContinue) {
+  private static GuardedCmd assertPredicate(int locUse,
+                                            int errorName, Expr pred,
+                                            int locPragmaDecl,
+                                            Object aux) {
+    if (Main.options().assertContinue) {
       Identifier idn = Identifier.intern("assertContinue" +
 					 assertContinueCounter);
       assertContinueCounter++;
@@ -355,26 +355,34 @@ public final class GC {
       acVar.loc = Location.NULL;
       pred = or(pred, acVar);
     }
-    String name = TagConstants.toString(errorName);
-    if (aux != null && Main.suggest) {
-      int n = AuxInfo.put(aux);
-      name += "/" + n;
+    if (errorName != TagConstants.CHKQUIET) {
+	String name = TagConstants.toString(errorName);
+	if (aux != null && Main.options().suggest) {
+	  int n = AuxInfo.put(aux);
+	  name += "/" + n;
+	}
+	Identifier en = makeLabel(name,locPragmaDecl,locUse);
+	pred = LabelExpr.make(locUse, locUse, false, en, pred);
     }
-    if (locPragmaDecl != Location.NULL) {
-      name += ":" + UniqName.locToSuffix(locPragmaDecl);
-    }
-    name += "@" + UniqName.locToSuffix(locUse);
-    Identifier en = Identifier.intern(name);
-    Expr p = LabelExpr.make(locUse, locUse, false, en, pred);
-    return ExprCmd.make(TagConstants.ASSERTCMD, p, locUse);
+    return ExprCmd.make(TagConstants.ASSERTCMD, pred, locUse);
   }
 
+  public static Identifier makeLabel(String name, int locPragmaDecl, int locUse) {
+	String lab = name;
+	if (locPragmaDecl != Location.NULL) {
+	    lab = lab + ":" + UniqName.locToSuffix(locPragmaDecl);
+	}
+	if (locUse != Location.NULL)
+	    lab += "@" + UniqName.locToSuffix(locUse);
+	return Identifier.intern(lab);
+  }
+	    
   //@ requires subst != null && target != null ;
   //@ requires subst.keyType == \type(GenericVarDecl) ;
   //@ requires subst.elementType <: \type(Expr) ;
   public static Expr subst(int sloc, int eloc, Hashtable subst, Expr target)
     {
-      if ( !Main.lazySubst ) {
+      if ( !Main.options().lazySubst ) {
 	// perform substitution eagerly
 
 	return Substitute.doSubst( subst, target );
@@ -396,7 +404,7 @@ public final class GC {
   //@ requires var!=null && val!=null
   public static Expr subst(int sloc, int eloc,
 			   GenericVarDecl var, Expr val, Expr target) {
-    if ( !Main.lazySubst ) {
+    if ( !Main.options().lazySubst ) {
       // perform substitution eagerly
       Hashtable t = new Hashtable();
       t.put( var, val );
@@ -587,7 +595,7 @@ public final class GC {
 
   public static Expr nary(int sloc, int eloc, int tag, ExprVec ev) {
 
-    if( Main.peepOptE ) {
+    if( Main.options().peepOptE ) {
       // Do some optimizations ...
 
       switch( tag ) {
@@ -605,7 +613,7 @@ public final class GC {
 	    else if( w.size() == 1 )
 	      return w.elementAt(0);
 	    else
-	      return NaryExpr.make( sloc, eloc, TagConstants.BOOLAND, w);
+	      return NaryExpr.make( sloc, eloc, TagConstants.BOOLAND, null, w);
 	  }
 
 	case TagConstants.BOOLOR:
@@ -622,7 +630,7 @@ public final class GC {
 	    else if( w.size() == 1 )
 	      return w.elementAt(0);
 	    else
-	      return NaryExpr.make( sloc, eloc, TagConstants.BOOLOR, w);
+	      return NaryExpr.make( sloc, eloc, TagConstants.BOOLOR, null, w);
 	  }
 
 	case TagConstants.BOOLIMPLIES:
@@ -630,7 +638,7 @@ public final class GC {
 	    Expr c0 = ev.elementAt(0);
 	    Expr c1 = ev.elementAt(1);
 
-	    if( Main.bubbleNotDown ) {
+	    if( Main.options().bubbleNotDown ) {
 	      return or( sloc, eloc,
 			 not( sloc, eloc, c0 ),
 			 c1 );
@@ -670,7 +678,7 @@ public final class GC {
 	      return falselit;
 	    } else if ( c0.getTag() == TagConstants.BOOLNOT ) {
 		return ((NaryExpr)c0).exprs.elementAt(0);
-	    } else if( Main.bubbleNotDown ) {
+	    } else if( Main.options().bubbleNotDown ) {
 	      switch( c0.getTag() ) {
 	      case TagConstants.BOOLOR:
 	      case TagConstants.BOOLAND:
@@ -717,7 +725,7 @@ public final class GC {
     }
 
     // No special case, so do default
-    return NaryExpr.make(sloc,eloc,tag, ev);
+    return NaryExpr.make(sloc,eloc,tag, null, ev);
   }
 
 
@@ -794,7 +802,7 @@ public final class GC {
     Assert.notNull(v);
     Assert.notNull(e);
 
-    if( Main.peepOptE ) {
+    if( Main.options().peepOptE ) {
 
       // Change forall (a) ((a==b) ==> e) -> e[b/a] if b a variable
 
@@ -849,7 +857,7 @@ public final class GC {
 	  return e;
       }
 
-      if( Main.peepOptE ) {
+      if( Main.options().peepOptE ) {
 
 	// change Q(a)Q(b)e -> Q(a b) e, where Q is a quantifier
 

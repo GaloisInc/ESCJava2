@@ -58,6 +58,9 @@ public class VcToString {
 			     /*@ non_null */ PrintStream to) {
     Hashtable oldNames = integralPrintNames;
     integralPrintNames = (Hashtable)oldNames.clone();
+
+    if (escjava.Main.options().prettyPrintVC)
+	to = new PrintStream(new escjava.prover.PPOutputStream(to));
     
     VcToString vts = new VcToString();
     vts.printDefpreds(to, vts.getDefpreds(e));
@@ -244,16 +247,16 @@ public class VcToString {
 
     case TagConstants.GUARDEXPR:
       {
-        if (!escjava.Main.guardedVC) {
+        if (!escjava.Main.options().guardedVC) {
           Assert.fail("VcToString.reallyPrintFormula: unreachable");
         } else {
           GuardExpr ge = (GuardExpr)e;
-          String var = escjava.Main.guardedVCPrefix + 
+          String var = escjava.Main.options().guardedVCPrefix + 
             UniqName.locToSuffix(ge.locPragmaDecl);
           out.print("(IMPLIES |" + var + "| ");
           printFormula( out, subst, ge.expr );
           out.print(")");
-          escjava.Main.guardVars.add(var);
+          escjava.Main.options().guardVars.add(var);
           break;
         }
       }
@@ -337,6 +340,21 @@ public class VcToString {
 	printFormula( out, subst, ne.exprs.elementAt(0));
 	out.print(" (NOT ");
 	printFormula( out, subst, ne.exprs.elementAt(1));
+	out.print("))");
+	break;
+      }
+
+    case TagConstants.METHODCALL:
+      {
+	NaryExpr ne = (NaryExpr)e;
+	out.print("(EQ |@true| ( |");
+	out.print(ne.methodName);
+	out.print("| ");
+	int n = ne.exprs.size();
+	for (int i=0; i<n; i++) {
+	    printTerm( out, subst, ne.exprs.elementAt(i));
+	    out.print(" ");
+	}
 	out.print("))");
 	break;
       }
@@ -631,6 +649,7 @@ public class VcToString {
       case TagConstants.LOCKLE:
       case TagConstants.LOCKLT:
       case TagConstants.MAX:
+      case TagConstants.METHODCALL:
       case TagConstants.REFEQ:
       case TagConstants.REFNE:
       case TagConstants.SELECT:
@@ -655,6 +674,8 @@ public class VcToString {
 	      op = "-"; break;
 	    case TagConstants.TYPELE:
 	      op = "<:"; break;
+	    case TagConstants.METHODCALL:
+	      op = "|" + ne.methodName.toString() + "|"; break;
 	    case TagConstants.INTEGRALNE:
 	    case TagConstants.REFNE:
 	    case TagConstants.TYPENE:
