@@ -14,7 +14,9 @@ import javafe.util.Set;
 import javafe.util.ErrorSet;
 import escjava.ast.*;
 import escjava.ast.TagConstants;
+import escjava.ast.Modifiers;
 import escjava.Main;
+import escjava.tc.Types;
 
 
 /** Translates Annotation Expressions to GCExpr. */
@@ -84,7 +86,8 @@ public final class TrAnExpr {
             // va accesses the field
 
             if (Modifiers.isStatic(fa.decl.modifiers)) {
-                return apply(sp, va);
+		VariableAccess nva = apply(sp, va);
+                return nva;
             } else {
                 // select expression whose rhs is an instance variable
                 Expr lhs;
@@ -223,6 +226,34 @@ public final class TrAnExpr {
 		       trSpecExpr(be.right, sp, st));
       }
 
+      case TagConstants.METHODINVOCATION: {
+	MethodInvocation me = (MethodInvocation)e;
+	ExprVec ev = ExprVec.make(me.args.size());
+		// FIXME - 'this' argument???
+	for (int i=0; i<me.args.size(); ++i) {
+	    ev.addElement( trSpecExpr( me.args.elementAt(i), sp, st));
+	}
+	Expr ne = GC.nary(me.getStartLoc(), me.getEndLoc(),
+			TagConstants.METHODCALL,ev);
+	((NaryExpr)ne).methodName = 
+		Identifier.intern(me.id.toString() + "." + me.args.size()); // FIXME -- full name ??? with type signature as well
+	return ne;
+      }
+
+      case TagConstants.NEWARRAYEXPR: {
+	NewArrayExpr nae = (NewArrayExpr)e;
+// FIXME - need to put in the type and the dimension array
+// also need to make SImplify understand the make$Array function
+	ExprVec ev = ExprVec.make(0); // should be 2
+	//ev.addElement( trSpecExpr( nae.args.element(0), sp, st) );
+	//ev.addElement( trSpecExpr( nae.args.element(1), sp, st) );
+	Expr ne = GC.nary(e.getStartLoc(), e.getEndLoc(),
+			TagConstants.METHODCALL, ev);
+	((NaryExpr)ne).methodName = 
+		Identifier.intern("make$Array");
+	return ne;
+      }
+
       case TagConstants.EXPLIES: {
 	// handle as implies, but with arguments reversed
         BinaryExpr be = (BinaryExpr)e;
@@ -284,10 +315,28 @@ public final class TrAnExpr {
       case TagConstants.TYPEEXPR:
 	return e;
 
+      case TagConstants.NUM_OF:
+      case TagConstants.MIN:
+      case TagConstants.MAXQUANT:
+      case TagConstants.SUM:
+      case TagConstants.PRODUCT:
+	{
+	    // FIXME - ignore these till we can figure out how to reason
+	    return LiteralExpr.make(TagConstants.INTLIT,new Integer(0),Location.NULL);
+        }
+
       case TagConstants.FORALL:
       case TagConstants.EXISTS: {
-	if (Main.nestQuantifiers) {
 	  QuantifiedExpr qe = (QuantifiedExpr)e;
+	if (qe.vars.size() != 1) {
+	  int locStart = e.getStartLoc();
+	  int locEnd = e.getEndLoc();
+
+	  Expr goodTypes = GC.truelit;
+	  Expr body = trSpecExpr(qe.expr, sp, st);
+	  return GC.quantifiedExpr(locStart, locEnd, tag,
+				   qe.vars, body, null);
+	} else if (Main.options().nestQuantifiers) {
 	  GenericVarDecl decl = qe.vars.elementAt(0);
 
 	  Assert.notFalse(sp == null || ! sp.contains(decl));
@@ -316,7 +365,6 @@ public final class TrAnExpr {
 	  else
 	    op = TagConstants.BOOLAND;
 
-	  QuantifiedExpr qe = (QuantifiedExpr)e;
 	  GenericVarDeclVec dummyDecls = GenericVarDeclVec.make();
 	  Expr goodTypes = GC.truelit;
 	  while (true) {
@@ -365,6 +413,10 @@ public final class TrAnExpr {
 	   *  the union of sp and st.
 	   */
 
+/* FIXME - disable this for now.  We use \old in AnnotationHandler when we
+are desugaring annotations, to wrap around a requires predicate when it is
+being combined with an ensures predicate.  This error would have us only
+wrap those variables being modified and not everything.
 	  int cReplacementsBefore = getReplacementCount();
 	  Expr tmpExpr = trSpecExpr(ne.exprs.elementAt(0), st, null);
 	  if (cReplacementsBefore == getReplacementCount()) {
@@ -376,7 +428,9 @@ public final class TrAnExpr {
 		  issuedPRECautions.add(locStr);
 	      }
 	  }
-	  return trSpecExpr(ne.exprs.elementAt(0), union(sp, st), null);
+*/
+	  return trSpecExpr(ne.exprs.elementAt(0), st, null);
+	  //return trSpecExpr(ne.exprs.elementAt(0), union(sp, st), null);
       }
 
       case TagConstants.FRESH: {
@@ -395,9 +449,35 @@ public final class TrAnExpr {
 	return GC.and(sloc, eloc, nonnull, newlyallocated);
       }
 
+      case TagConstants.DOTDOT:
+	BinaryExpr be = (BinaryExpr)e;
+// FIXME
+	return be.left;
+
+      case TagConstants.NOWARN_OP:
+      case TagConstants.WACK_NOWARN:
+      case TagConstants.WARN_OP:
+      case TagConstants.WARN:
+      {
+	// FIXME - set these as a pass through for now
+	NaryExpr ne = (NaryExpr)e;
+	return trSpecExpr(ne.exprs.elementAt(0), sp, st);
+      }
+
+      case TagConstants.SPACE:
+      case TagConstants.WACK_WORKING_SPACE:
+      case TagConstants.WACK_DURATION:
+	// FIXME - translation of these is not implemented.
+	// Set it to (long)0 for now.
+	return LiteralExpr.make(TagConstants.LONGLIT, new Long(0), 0);
+
+      case TagConstants.NOTHINGEXPR:
+	return null;
+
       default:
 	Assert.fail("UnknownTag<"+e.getTag()+","+
-		    TagConstants.toString(e.getTag())+"> on "+e);
+		    TagConstants.toString(e.getTag())+"> on "+e+ " " +
+		    Location.toString(e.getStartLoc()));
 	return null; // dummy return
     }
   }
@@ -467,7 +547,7 @@ public final class TrAnExpr {
   public static Expr quantTypeCorrect(GenericVarDecl vd, Hashtable sp) {
     Assert.notFalse(GetSpec.NonNullPragma(vd) == null);
     if ((Types.isIntType(vd.type) || Types.isLongType(vd.type)) &&
-	!Main.useIntQuantAntecedents) {
+	!Main.options().useIntQuantAntecedents) {
       return GC.truelit;
     } else {
       return typeAndNonNullCorrectAs(vd, vd.type, null, true, sp);
@@ -520,7 +600,7 @@ public final class TrAnExpr {
       e = GC.nary(TagConstants.REFNE, v, GC.nulllit);
       if (nonNullPragma != null) {
 	int locPragmaDecl = nonNullPragma.getStartLoc();
-        if (Main.guardedVC && locPragmaDecl != Location.NULL) {
+        if (Main.options().guardedVC && locPragmaDecl != Location.NULL) {
           e = GuardExpr.make(e, locPragmaDecl);
         }
 	LabelInfoToString.recordAnnotationAssumption(locPragmaDecl);
@@ -564,7 +644,7 @@ public final class TrAnExpr {
       Expr quant = GC.forall(sDecl, GC.implies(c0, c1));
       int locPragmaDecl = nonNullPragma.getStartLoc();
       LabelInfoToString.recordAnnotationAssumption(locPragmaDecl);
-      if (Main.guardedVC && locPragmaDecl != Location.NULL) {
+      if (Main.options().guardedVC && locPragmaDecl != Location.NULL) {
         quant = GuardExpr.make(quant, locPragmaDecl);
       }
       conjuncts.addElement(quant);
@@ -752,8 +832,8 @@ public final class TrAnExpr {
     } else if (Types.isReferenceOrNullType( leftType ) 
 	       && Types.isReferenceOrNullType( rightType )) {
       naryTag = binary_table[i][5];
-    } else if (leftType.getTag() == TagConstants.TYPECODE
-	       && rightType.getTag() == TagConstants.TYPECODE) {
+    } else if (Types.isTypeType(leftType)
+	       && Types.isTypeType(rightType)) {
       naryTag = binary_table[i][6];
     } else {
       Assert.fail("Bad types on tag "+TagConstants.toString(tag) );
@@ -847,8 +927,9 @@ public final class TrAnExpr {
   private static int cSubstReplacements = 0;
 
   private static VariableAccess apply(Hashtable map, VariableAccess va) {
-    if (map == null)
+    if (map == null) {
       return va;
+    }
     VariableAccess v = (VariableAccess)map.get(va.decl);
     if (v != null) {
       cSubstReplacements++;

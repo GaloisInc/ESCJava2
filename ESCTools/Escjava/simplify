@@ -1,4 +1,10 @@
 #!/bin/csh -f
+## This script is a wrapper that sets some environment variables and then
+## invokes the executable specified by ESCJ_SIMPLIFY, which should be the
+## Simplify executable appropriate for the platform.
+
+## The environment must set ESCJ_SIMPLIFY
+## Typically the user sets SIMPLIFY and the escj script constructs ESCJ_SIMPLIFY
 
 #
 # Handle defaults:
@@ -6,11 +12,6 @@
 if ($?ESCJ_SIMPLIFY_ARGS) then
 else
 	setenv	ESCJ_SIMPLIFY_ARGS	"-noprune -noplunge"
-endif
-
-if ($?ESCJ_SIMPLIFY) then
-else
-	setenv	ESCJ_SIMPLIFY	/proj/system/bin/Simplify
 endif
 
 if ($?PROVER_KILL_TIME) then
@@ -22,6 +23,5 @@ if ($?PROVER_CC_LIMIT) then
 else
 	setenv	PROVER_CC_LIMIT		"10"
 endif
-
 
 ${ESCJ_SIMPLIFY} ${ESCJ_SIMPLIFY_ARGS}

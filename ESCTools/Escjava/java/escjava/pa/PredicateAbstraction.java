@@ -17,6 +17,7 @@ import javafe.tc.Types;
 import escjava.*;
 import escjava.ast.*;
 import escjava.ast.TagConstants;
+import escjava.ast.Modifiers;
 import escjava.translate.*;
 import escjava.sp.SPVC;
 import escjava.sp.*;
@@ -25,8 +26,8 @@ import escjava.pa.generic.*;
 
 import mocha.wrappers.jbdd.*;
 
-public class PredicateAbstraction {
-
+public class PredicateAbstraction
+{
     public static ASTDecoration paDecoration = new ASTDecoration("paDecoration");
     
     static GuardedCmd abstractLoop(LoopCmd g, GuardedCmd context, Set env) {
@@ -38,7 +39,8 @@ public class PredicateAbstraction {
 	return pa.abstractLoopHelper(context, env);
     }
 
-    private static boolean quantifyAssumptions = !Boolean.getBoolean("PAnoQuantifyAssumptions");
+    private static boolean quantifyAssumptions = 
+        !Boolean.getBoolean("PAnoQuantifyAssumptions");
     ExprVec invariants = ExprVec.make();
     private jbddManager bddManager;
     public Abstractor abstractor;
@@ -62,7 +64,7 @@ public class PredicateAbstraction {
 
 	Set vds = Targets.normal(body);
 
-	if( Main.inferPredicates ) {
+	if( Main.options().inferPredicates ) {
 	    //System.out.println("Before inf: "+g.predicates);
 	    inferPredicates(g, env, vds);
 	    //System.out.println("After inf: "+g.predicates);
@@ -88,7 +90,7 @@ public class PredicateAbstraction {
 	Translate translate = (new Translate());
 	GuardedCmd modifyGc = translate.modify(vds, g.locStart);
 
-	if( Main.preciseTargets ) {
+	if( Main.options().preciseTargets ) {
 	    Set aTargets = ATarget.compute( VarInCmd.make(g.tempVars, g ));
 	    modifyGc = translate.modifyATargets( aTargets, g.getStartLoc());
 	}
@@ -155,7 +157,7 @@ public class PredicateAbstraction {
 	    bodyDesugared = Traverse.computeHelper(body, c, env);	
 	    milliSecsUsed -= java.lang.System.currentTimeMillis();
 
-	    if( Main.pgc ) {
+	    if( Main.options().pgc ) {
 		System.out.println("\n**** Guarded Command c:");
 		((EscPrettyPrint)PrettyPrint.inst).print(System.out, 0, c);
 		System.out.println("");
@@ -253,7 +255,7 @@ public class PredicateAbstraction {
 								   new Integer(0),
 								   loc ));
 		    
-		    Expr pred = NaryExpr.make( loc, loc, TagConstants.INTEGRALGE, vec );
+		    Expr pred = NaryExpr.make( loc, loc, TagConstants.INTEGRALGE, null, vec );
 		    g.predicates.addElement( pred );
 		}
 
@@ -266,7 +268,7 @@ public class PredicateAbstraction {
 								   null,
 								   loc ));
 		    
-		    Expr pred = NaryExpr.make( loc, loc, TagConstants.REFNE, vec );
+		    Expr pred = NaryExpr.make( loc, loc, TagConstants.REFNE, null, vec );
 		    g.predicates.addElement( pred );		    
 		}
 	    }
@@ -397,7 +399,9 @@ public class PredicateAbstraction {
 	}
     }
 
-    private void guessPredicate( Expr e, Expr eOld, Type type, ExprVec predicates, int loc, Expr sca, ExprVec boundsSC ) {
+    private void guessPredicate( Expr e, Expr eOld, Type type, 
+                                 ExprVec predicates, int loc, 
+                                 Expr sca, ExprVec boundsSC ) {
 
 	if( type != null ) {
 	    Expr pred;
@@ -447,5 +451,4 @@ public class PredicateAbstraction {
 	}
     }
     */
-	
 }

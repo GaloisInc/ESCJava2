@@ -1,72 +1,189 @@
 # Copyright 2000, 2001, Compaq Computer Corporation
+# Altered extensively by David R. Cok as part of the 2003 upgrade of
+# the ESC tools.
 
-# Need to source setup before calling gnumake
+# author: David Cok
+# author: Joe Kiniry
 
-all: clean depend javafe javadoc runtest
+export TOP = ..
+include ${TOP}/Makefile.defs
+# The above defines JAVAFE_ROOT, JAVAC, JAVAC_FLAGS
+
+# Various conventional UNIX tools are used in the following, including cc in 
+# preprocess only mode.
+
+##############################################################################
+## Variables needed in the Makefile.
+export CLASSDIRECTORY = ${JAVAFE_ROOT}/classfiles
+export SOURCEDIRECTORY = ${JAVAFE_ROOT}/java
+export TESTSOURCEDIRECTORY = ${JAVAFE_ROOT}/test
+
+## This one is needed in submakes that don't define their own classpath
+export CLASSPATH = ${CLASSDIRECTORY}
+
+##############################################################################
+
+.PHONY: default
+default: build
+
+.PHONY: all
+all: clean build test docs
+
+.PHONY: build
+build: compile
+
+.PHONY: buildall
+buildall: compileall
+
+.PHONY: test
+ifdef ALLTESTS
+test: runtest typecheckTests
+else
+test: runtest
+endif
+
+###########################################################################
+# build targets
+
+SOURCEFILES := java/javafe/*.java java/javafe/*/*.java java/tohtml/*.java
+
+CLASSESSTAMP = classes.stamp
 
 
-install: clean depend javafe javadoc prot zip
+.PHONY: compile
+compile: ${CLASSDIRECTORY} source ${CLASSESSTAMP}
 
-classdirCheck:
-	# Check that 'source setup' has been run in the Javafe directory:
-	# if ESCJ is defined, then the following line will fail
-	expandpath .${ESCJ}${ESCJ}${ESCJ}
+${CLASSESSTAMP}: ${SOURCEFILES}
+	${JAVAC} ${JAVAC_FLAGS} -classpath ${CLASSDIRECTORY}:${SOURCEDIRECTORY} \
+	  -d ${CLASSDIRECTORY} $?
+	touch ${CLASSESSTAMP}
 
-zip: classdirCheck
+.PHONY: compileall
+compileall: ${CLASSDIRECTORY} source javafeall
+
+.PHONY: javafeall
+javafeall:
+	( cd java; \
+	${JAVAC} ${JAVAC_FLAGS} -classpath ${CLASSDIRECTORY}:${SOURCEDIRECTORY} \
+	  -d ${CLASSDIRECTORY} `find javafe -name "*.java"` \
+				`find tohtml -name "*.java"` )
+	touch ${CLASSESSTAMP}
+
+.PHONY: source
+source: 
+	${MAKE} -C astgen
+	${MAKE} -C java/javafe/ast source
+	${MAKE} -C java/javafe/tc source
+
+${CLASSDIRECTORY}:
+	mkdir -p ${CLASSDIRECTORY}
+
+.PHONY: jtools
+jtools:	
+	${MAKE} -C java/jtools
+
+###########################################################################
+
+## FIXME - FIX THIS
+
+.PHONY: zip
+zip:
 	rm -f ${CLASSDIRECTORY}/javafe.zip
 	cd ${CLASSDIRECTORY}; jar -cf0 javafe.zip javafe tohtml
-	chmod a+rw ${CLASSDIRECTORY}/javafe.zip
-
-prot:
-	chmod -fR a+rwX .
-	find /src/escjava/CVS -exec chmod -f a+rwX {} \;
-
-source:
-	cd astgen;			${MAKE}
-	cd java/javafe/ast; 		${MAKE} source
-	cd java/javafe/tc; 		${MAKE} source
+	chmod a+r ${CLASSDIRECTORY}/javafe.zip
 
 
-clean: cleanclasses classdirCheck
-	rm -f ${CLASSDIRECTORY}/compiled.zip
-	cd doc/javadoc; rm -f *.html
-	cd java/javafe/ast;         	${MAKE} clean
-	cd java/javafe/parser/test; 	${MAKE} clean
-	cd java/javafe/tc;          	${MAKE} clean
-	cd java/javafe/test;        	${MAKE} clean
-	cd java/jtools; 	    	${MAKE} clean
-	cd astgen; 		    	${MAKE} clean
+###########################################################################
+# clean targets
 
+.PHONY: clean
+clean: cleanclasses
+	rm -f doc/javadoc/*.html ${CLASSESSTAMP}
+	${MAKE} -C java/javafe/ast clean
+	${MAKE} -C test/javafe/parser/test clean
+	${MAKE} -C java/javafe/tc clean
+	${MAKE} -C test/javafe/test clean
+	${MAKE} -C java/jtools clean
+	${MAKE} -C astgen clean     ##  Has to be last - used by others
+
+.PHONY: cleanclasses
 cleanclasses:
-	cd classes; find . -name \*.class | xargs rm -f
-	rm -f classes/.javamake
+	rm -rf ${CLASSDIRECTORY}
 
 
-jtools:	javafe
-	cd java/jtools; ${MAKE}
+###########################################################################
+## docs targets
 
-doc:	javadoc
+.PHONY: docs
+docs:	
+	@true
 
-javadoc: source 
-	cd java; \
-        ${JAVADOC} -d ${JAVADOCDIRECTORY} \
-                javafe javafe.ast javafe.parser  \
-		javafe.reader javafe.genericfile javafe.filespace \
-		javafe.tc javafe.util \
-		jtools.jwhich jtools.jls
-#		jtools.jcheck \
-#		jtools.jcheck.parseTypes
+## javadocs are generated from the parent directory
+
+###########################################################################
+## test targets
 
 
-runtest:
-	cd java/javafe/parser/test; 	${MAKE} runtest
-	cd java/javafe/util; 		${MAKE} runtest
-	cd java/javafe/test; 		${MAKE} runtest
+JAVAFETESTTARGETS = \
+		javafe/test/Print.java			\
+		javafe/test/SuperlinksTest.java		\
+		javafe/test/SupertypeTest.java		\
+		javafe/test/CountFilesLoaded.java	\
+		javafe/test/LocTool.java		\
+		javafe/test/lex/TestLex.java		\
+		javafe/parser/test/TestLex.java		\
+		javafe/parser/test/TestExpr.java	\
+		javafe/parser/test/TestParse.java	\
 
+
+.PHONY: runtest
+runtest: javafe_test
+	${MAKE} -C test/javafe/parser/test runtest
+	${MAKE} -C java/javafe/util        runtest
+	${MAKE} -C test/javafe/test        runtest
+
+# This includes runtest and test_jdk_sources
+.PHONY: extensive_tests
+extensive_tests: javafe_test
+	${MAKE} -C test/javafe/parser/test big
+
+.PHONY: test_jdk_sources
+test_jdk_sources:
+	${MAKE} -C test/javafe/parser/test testparsejdkidempotence
+
+.PHONY: typecheckTests
+typecheckTests: javafe_test
+	@test/javafe/test/typecheckJavafe
+	@echo 
+	@test/javafe/test/typecheckJDK
+
+## This tests a binary release that is untarred in the RELTEMP directory,
+## with RELCLASSPATH pointing to the esctools1.jar file that is being tested.
+## The current directory should be the usual ESCTOOLS_ROOT directory so that
+## the tests are available.
+.PHONY: test-release
+test-release: 
+	@ echo TESTING RELEASE - Javafe
+	${MAKE} JAVAFE_CLASSPATH=${RELCLASSPATH} CLASSDIRECTORY=${RELTEMP} javafe_test
+	${MAKE} ALLTESTS=1 CLASSPATH=${RELCLASSPATH} -C java/javafe/util runtest
+	${MAKE} ALLTESTS=1 JAVAFE_CLASSPATH=${RELCLASSPATH} CLASSPATH=${RELCLASSPATH}:${RELTEMP} -C test/javafe/test runtest
+	${MAKE} ALLTESTS=1 CLASSPATH=${RELCLASSPATH}:${RELTEMP} -C test/javafe/parser/test runtest
+	rm -rf ${RELTEMP}/*
+
+## This builds tests; presumes that the build has been made
+.PHONY: javafe_test
+javafe_test:
+	( cd test; \
+	${JAVAC} -classpath ${JAVAFE_CLASSPATH}:${TESTSOURCEDIRECTORY} \
+	  -d ${CLASSDIRECTORY} ${JAVAFETESTTARGETS} )
+
+###########################################################################
+## misc targets -- FIXME
 
 OTHERSOURCEFILES = astgen/ast*.c astgen/ast*.h astgen/ast*.l
-TESTHARNESSFILES = java/javafe/parser/test/Test*.java java/javafe/test/*.java
+TESTHARNESSFILES = test/javafe/parser/test/Test*.java test/javafe/test/*.java
 
+.PHONY: wc
 wc:
 	# --- Non-java Source files ---
 	wc ${OTHERSOURCEFILES}
@@ -79,46 +196,9 @@ wc:
 	${JAVA} javafe.CountLines ${TESTHARNESSFILES}
 	# jrun javafe.parser.test.TestParse print ${TESTHARNESSFILES} | wc
 
-
-#
-# Code for fast incremental recompilation of javafe:
-#
-
-JAVAFETARGETS = javafe.ast.DefaultVisitor		\
-		javafe.filespace.Resolve		\
-		javafe.CountLines			\
-		javafe.TestTool				\
-		javafe.test.Print			\
-		javafe.test.SuperlinksTest		\
-		javafe.test.SupertypeTest		\
-		javafe.test.CountFilesLoaded		\
-		javafe.test.LocTool			\
-		javafe.test.lex.TestLex			\
-		javafe.parser.test.TestLex		\
-		javafe.parser.test.TestExpr		\
-		javafe.parser.test.TestParse		\
-		javafe.util.CorrelatedReaderTest	\
-		javafe.util.FilterCorrelatedReader	\
-		tohtml.DeclLinks			\
-		tohtml.Java2Html			\
-		javafe.ast.Util				\
-		javafe.PrintSpec			\
-		javafe.CopyLoaded
-
-depend: source classdirCheck
-	cd java; CLASSPATH=${LCLASSPATH} \
-		javadepend -d ${CLASSDIRECTORY} ${JAVAFETARGETS} \
-		| egrep -v '^/' > ../sources
-
-javafe: source classdirCheck		# depend
-	cd java; \
-		javac -d ${CLASSDIRECTORY} `cat ../sources`
-
-compile: javafe zip classdirCheck
-	swift -O2 ${CLASSDIRECTORY}/javafe.zip -o ${CLASSDIRECTORY}/compiled.zip
-
+.PHONY: esc
 esc: source
 	cd java; \
 	date; \
-	escjava -classpath ${CLASSPATH} -f ../sources; \
+	escjava -classpath ${CLASSDIRECTORY} -f `find javafe -name "*.java"` \
 	date
