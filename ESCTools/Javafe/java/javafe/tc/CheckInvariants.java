@@ -4,7 +4,6 @@ package javafe.tc;
 
 
 import javafe.ast.*;
-import javafe.tc.TagConstants; // Work around compiler bug
 import javafe.util.Assert;
 
 
@@ -213,6 +212,14 @@ class CheckInvariants {
       }
 
     case TagConstants.SKIPSTMT:
+      return;
+
+    case TagConstants.ASSERTSTMT:
+      {
+	AssertStmt a = (AssertStmt)s;
+	checkExpr(sig,a.pred);
+	if (a.label != null) checkExpr(sig,a.label);
+      }
       return;
 
     case TagConstants.SWITCHLABEL:

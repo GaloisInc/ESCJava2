@@ -3,7 +3,6 @@
 package javafe.tc;
 
 import javafe.ast.*;
-import javafe.tc.TagConstants; // Work around compiler bug
 import javafe.parser.*;
 import javafe.util.*;
 import java.util.Hashtable;
@@ -12,12 +11,12 @@ import java.util.Enumeration;
 
 
 /**
- ** Does type name resolution and type checking at signature level of
- ** a type declaration, and infers the members of the
- ** declaration. Also resolves type names at the signature
- ** level. Assumes the TypeSig was previously in the "supertype links
- ** resolved" state.
- **/
+ * Does type name resolution and type checking at signature level of
+ * a type declaration, and infers the members of the
+ * declaration. Also resolves type names at the signature
+ * level. Assumes the TypeSig was previously in the "supertype links
+ * resolved" state.
+ */
 
 public class PrepTypeDeclaration {
 
@@ -92,18 +91,18 @@ public class PrepTypeDeclaration {
   }
 
   /**
-   ** Returns the set of all methods that <code>md</code> overrides,
-   ** where <code>md</code> is considered to appear in those prepped
-   ** subtypes of <code>md.parent</code> that inherit <code>md</code>.
-   **
-   ** Warning: This set may expand as additional subtypes of
-   ** <code>md.parent</code> are prepped.
-   **
-   ** Warning: If you want the set of methods that <code>md</code>
-   ** overrides, with <code>md</code> considered to appear in a
-   ** particular type <code>td</code>, use getOverrides(TypeDecl,
-   ** MethodDecl) instead!
-   **/
+   * Returns the set of all methods that <code>md</code> overrides,
+   * where <code>md</code> is considered to appear in those prepped
+   * subtypes of <code>md.parent</code> that inherit <code>md</code>.
+   *
+   * Warning: This set may expand as additional subtypes of
+   * <code>md.parent</code> are prepped.
+   *
+   * Warning: If you want the set of methods that <code>md</code>
+   * overrides, with <code>md</code> considered to appear in a
+   * particular type <code>td</code>, use getOverrides(TypeDecl,
+   * MethodDecl) instead!
+   */
   //@ requires md!=null
   //@ ensures \result!=null
   //@ ensures \result.elementType == \type(MethodDecl)
@@ -120,12 +119,12 @@ public class PrepTypeDeclaration {
 
 
   /**
-   ** Returns the set of methods that <code>md</code> overrides, with
-   ** <code>md</code> considered to appear in a particular type
-   ** <code>td</code>. <p>
-   **
-   ** This routine may result in <code>td</code> being prepped.
-   **/
+   * Returns the set of methods that <code>md</code> overrides, with
+   * <code>md</code> considered to appear in a particular type
+   * <code>td</code>. <p>
+   *
+   * This routine may result in <code>td</code> being prepped.
+   */
   //@ requires td!=null
   //@ requires md!=null
   //@ ensures \result!=null
@@ -260,12 +259,12 @@ public class PrepTypeDeclaration {
   
 
     /**
-     ** Check that the modifiers of a type are ok. <p>
-     **
-     ** decl is the TypeDecl for the type, and currentSig its TypeSig. <p>
-     **
-     ** isClass should be true iff the TypeDecl is a ClassDecl.<p>
-     **/
+     * Check that the modifiers of a type are ok. <p>
+     *
+     * decl is the TypeDecl for the type, and currentSig its TypeSig. <p>
+     *
+     * isClass should be true iff the TypeDecl is a ClassDecl.<p>
+     */
     public void checkTypeModifiers(/*@non_null*/ TypeDecl decl,
 				   /*@non_null*/ TypeSig currentSig,
 				   boolean isClass) {
@@ -556,7 +555,7 @@ public class PrepTypeDeclaration {
 	FieldDecl e = (FieldDecl)fieldSeq.elementAt(i);
 	if( e.id == x.id )
 	  ErrorSet.error(x.locId, 
-			 "Duplicate field with same identifier");
+			 "Duplicate field with same identifier",e.locId);
       }
 
     getEnvForCurrentSig(currentSig, true).resolveType( x.type );
@@ -664,21 +663,22 @@ public class PrepTypeDeclaration {
 	if( Types.isSameFormalParaDeclVec(x.args, cd.args ))
 	  ErrorSet.error( x.loc, 
 			 "Duplicate declaration of constructor "
-			 +"with same signature");
+			 +"with same signature",
+			cd.loc);
       }
     
     constructorSeq.addElement(x);
   }
   
-  // **********************************************************************
+  // *********************************************************************
 
   /**
-   ** Find all members of a supertype inherited by a type.
-   ** Adds these members to fieldSeq and methodSeq.
-   **
-   ** The order in which superTypes are added is crucial.  See the
-   ** comment below marked by a <<>>
-   **/
+   * Find all members of a supertype inherited by a type.
+   * Adds these members to fieldSeq and methodSeq.
+   *
+   * The order in which superTypes are added is crucial.  See the
+   * comment below marked by a <<>>
+   */
   
   //@ requires type!=null && superType!=null
   protected void addInheritedMembers(TypeSig type, TypeSig superType ) {
@@ -804,10 +804,17 @@ public class PrepTypeDeclaration {
 		if( !Types.isCompatibleAccess(overridingMethod.modifiers 
 					      & Modifiers.ACCESS_MODIFIERS,
 					      superMethod.modifiers
-					      & Modifiers.ACCESS_MODIFIERS) )
+					      & Modifiers.ACCESS_MODIFIERS) ) {
 		  ErrorSet.error(overridingMethod.loc,
 			 "Incompatible access modifiers between "+
-			 "overridden(hidden) and overriding(hiding) methods");
+			 "overridden(hidden) ["
+			  + Modifiers.toString(superMethod.modifiers & 
+				Modifiers.ACCESS_MODIFIERS)
+			  + ", " + Location.toString(superMethod.loc)
+			  + "] and overriding(hiding) methods ["
+			  + Modifiers.toString(overridingMethod.modifiers & 
+				Modifiers.ACCESS_MODIFIERS) + "]");
+		}
 		
 		// Record that the method is overridden if it is not hidden:
 		if (!Modifiers.isStatic(overridingMethod.modifiers))
@@ -883,7 +890,7 @@ public class PrepTypeDeclaration {
     return null;
   }
   
-  // **********************************************************************
+  // *********************************************************************
   
   //@ requires loc!=Location.NULL
   public void 
@@ -899,35 +906,42 @@ public class PrepTypeDeclaration {
   
 
     /**
-     ** Check to make sure a supertype is accessible; reports an error
-     ** to ErrorSet if not.<p>
-     **
-     ** Here, supertype is a supertype of currentSig; this fact is
-     ** declared at loc.  E.g., loc is the location of the supertype
-     ** name in the extends or implements clause of currentSig.<p>
-     **/
+     * Check to make sure a supertype is accessible; reports an error
+     * to ErrorSet if not.<p>
+     *
+     * Here, supertype is a supertype of currentSig; this fact is
+     * declared at loc.  E.g., loc is the location of the supertype
+     * name in the extends or implements clause of currentSig.<p>
+     */
     //@ requires loc!=Location.NULL
     public void checkSuperTypeAccessible(/*@non_null*/ TypeSig currentSig,
 					 /*@non_null*/ TypeSig supertype,
 					 int loc) {
+/* FIXME - this error is commented out because it incorrectly disallows
+ using a protected nested class of a public supertype that is not in 
+the same package.
+ There are presumably situations this should check, but that will take
+ some research, and in any case, we could just leave them to java.
+
 	// fix for 1.1: !!!!
 	if (! Modifiers.isPublic(supertype.getTypeDecl().modifiers)
 	    && ! currentSig.inSamePackageAs(supertype))
 	    ErrorSet.error(loc, "Supertype is not accessible.");
+*/
     }
 
 
     /**
-     ** This routine constructs and returns the interface that all
-     ** interfaces are de-facto subinterfaces of.<p>
-     **
-     ** This interface is not an actual Java interface, but rather a
-     ** made up one.  Its locations will be valid, but misleading.<p>
-     **
-     **
-     ** The root interface is composed of all the public methods of
-     ** java.lang.Object turned into abstract methods.<p>
-     **/
+     * This routine constructs and returns the interface that all
+     * interfaces are de-facto subinterfaces of.<p>
+     *
+     * This interface is not an actual Java interface, but rather a
+     * made up one.  Its locations will be valid, but misleading.<p>
+     *
+     *
+     * The root interface is composed of all the public methods of
+     * java.lang.Object turned into abstract methods.<p>
+     */
     //@ ensures \result!=null
     private TypeSig getRootInterface() {
 	if (_rootCache!=null)

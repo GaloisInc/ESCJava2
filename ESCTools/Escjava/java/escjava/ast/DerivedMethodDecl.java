@@ -6,10 +6,6 @@ package escjava.ast;
 import java.util.Hashtable;
 
 import javafe.ast.*;
-import escjava.ast.Visitor;      // Work around 1.0.2 compiler bug
-import escjava.ast.TagConstants; // Work around 1.0.2 compiler bug
-import escjava.ast.GeneratedTags;// Work around 1.0.2 compiler bug
-import escjava.ast.AnOverview;   // Work around 1.0.2 compiler bug
 import javafe.util.Assert;
 import javafe.util.Location;
 import escjava.Main;
@@ -29,7 +25,8 @@ public class DerivedMethodDecl {
   public TypeNameVec throwsSet;
   public boolean usesFresh;
   public ExprModifierPragmaVec requires;
-  public ExprModifierPragmaVec modifies;
+  public CondExprModifierPragmaVec modifies;
+  public boolean modifiesEverything = false;
   public ExprModifierPragmaVec ensures;
   public VarExprModifierPragmaVec exsures;
   public SimpleModifierPragma nonnull;  // refers to any one of the method's non_null pragmas, or null if none
@@ -101,7 +98,7 @@ public class DerivedMethodDecl {
 
   public void computeFreshUsage() {
     usesFresh = false;
-    if (!Main.allocUseOpt) {
+    if (!Main.options().allocUseOpt) {
       // continue as if "fresh" (and hence "alloc") were used
       usesFresh = true;
       return;

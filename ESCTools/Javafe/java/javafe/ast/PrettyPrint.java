@@ -9,50 +9,50 @@ import java.io.IOException;
 import javafe.util.Assert;
 import javafe.util.Location;
 
-
+// FIXME - should this write Strings instead of bytes?
 public abstract class PrettyPrint {
 
     /***************************************************
      *                                                 *
      * Creation & delegation support:		       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** The only instance front-end code should use to pretty print
-     ** information.<p>
-     **
-     ** Will be some subclass of PrettyPrint; defaults to an instance
-     ** of StandardPrettyPrint.  Extensions should replace with an
-     ** instance that understands how to pretty print the extensions.
-     **/
+     * The only instance front-end code should use to pretty print
+     * information.<p>
+     *
+     * Will be some subclass of PrettyPrint; defaults to an instance
+     * of StandardPrettyPrint.  Extensions should replace with an
+     * instance that understands how to pretty print the extensions.
+     */
     public static /*@non_null*/ PrettyPrint inst = new StandardPrettyPrint();
     
     /**
-     ** When an instance of PrettyPrint wishes to call itself
-     ** recursively, it does not do so by using this, but rather by
-     ** using this explicit self instance variable.<p>
-     **
-     ** This allows instances of PrettyPrint to be extended at runtime
-     ** (rather than by compile-time static subclassing) using the
-     ** DelegatingPrettyPrint class.  See javafe.tc.TypePrint for an
-     ** example of how this may be done.
-     **/
+     * When an instance of PrettyPrint wishes to call itself
+     * recursively, it does not do so by using this, but rather by
+     * using this explicit self instance variable.<p>
+     *
+     * This allows instances of PrettyPrint to be extended at runtime
+     * (rather than by compile-time static subclassing) using the
+     * DelegatingPrettyPrint class.  See javafe.tc.TypePrint for an
+     * example of how this may be done.
+     */
     public /*@non_null*/ PrettyPrint self;
 
 
     /**
-     ** Create a normal instance of PrettyPrint that does not have a
-     ** runtime extension.
-     **/
+     * Create a normal instance of PrettyPrint that does not have a
+     * runtime extension.
+     */
     protected PrettyPrint() { this.self = this; }
 
     /**
-     ** Create an instance of PrettyPrint that has a runtime extension.<p>
-     **
-     ** Self should be an instance of DelegatingPrettyPrint that 
-     ** eventually calls us after some amount of filtering.
-     **/  
+     * Create an instance of PrettyPrint that has a runtime extension.<p>
+     *
+     * Self should be an instance of DelegatingPrettyPrint that 
+     * eventually calls us after some amount of filtering.
+     */  
     protected PrettyPrint(/*@non_null*/ PrettyPrint self) { this.self = self; }
 
 
@@ -60,16 +60,16 @@ public abstract class PrettyPrint {
      *                                                 *
      * Variables controling printing:		       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     public static int INDENT = 3;
 
 
     /**
-     ** Should we display code that is inferred? <p>
-     **
-     ** E.g., the  inferred "this.", superclass constructor calls, etc.
-     **/
+     * Should we display code that is inferred? <p>
+     *
+     * E.g., the  inferred "this.", superclass constructor calls, etc.
+     */
     public static boolean displayInferred = false;
 
 
@@ -77,7 +77,7 @@ public abstract class PrettyPrint {
      *                                                 *
      * Procedures to print various things:	       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
   /** Print a compilation onto to a stream.  Works best when
     <code>o</code> is positioned at the start of a new line. */
@@ -87,10 +87,10 @@ public abstract class PrettyPrint {
 
 
     /**
-     ** Print a type declaration onto to a stream. <p>
-     **
-     ** Ends with a newline.<p>
-     **/
+     * Print a type declaration onto to a stream. <p>
+     *
+     * Ends with a newline.<p>
+     */
     //@ requires o!=null
     public void print(OutputStream o, int ind, TypeDecl d) {
 	printnoln(o, ind, d);
@@ -98,9 +98,9 @@ public abstract class PrettyPrint {
     }
 
     /**
-     ** Print a type declaration onto to a stream, without a final
-     ** newline. <p>
-     **/
+     * Print a type declaration onto to a stream, without a final
+     * newline. <p>
+     */
     //@ requires o!=null
     public abstract void printnoln(OutputStream o, int ind, TypeDecl d);
 
@@ -379,20 +379,11 @@ public abstract class PrettyPrint {
 
   //@ requires o!=null && s!=null
   public static void write(OutputStream o, String s) {
-    int len = s.length();
-    int start = 0, end = Math.min(len, outBuf.length);
-    do {
-      s.getBytes(start, end, outBuf, 0);
+      byte[] outBuf = s.getBytes();
       try {
-	o.write(outBuf, 0, end - start);
+	o.write(outBuf);
       } catch (IOException e) { Assert.fail("IO Exception"); }
-      start = end;
-      end = Math.min(len, start + outBuf.length);
-    } while (start < len);
   }
-
-  //@ invariant outBuf!=null
-  private static byte[] outBuf = new byte[100];
 
   //@ requires o!=null
   public static void spaces(OutputStream o, int number) {

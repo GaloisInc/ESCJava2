@@ -7,66 +7,65 @@ import java.util.Hashtable;
 import javafe.ast.*;
 import javafe.util.*;
 
-
 /**
- **
- **/
+ *
+ */
 
-public class TypeSig extends Type {
-
+public class TypeSig extends Type
+{
     /***************************************************
      *                                                 *
      * Basic TypeSig instance variables:	       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** The name of the package we belong to.  Always non-null.
-     **/
+     * The name of the package we belong to.  Always non-null.
+     */
     //@ invariant \nonnullelements(packageName)
     public /*public readonly*/ String[] packageName;
 
     /**
-     ** Our enclosing type or null iff we are a package-member type.
-     **/
+     * Our enclosing type or null iff we are a package-member type.
+     */
     public /*public readonly*/ TypeSig enclosingType;
 
     /**
-     ** Our simple name or null if we are an anonymous type.
-     **/
+     * Our simple name or null if we are an anonymous type.
+     */
     public /*public readonly*/ String simpleName;
 
     /**
-     ** Are we a direct member of a package or a type? <p>
-     **
-     ** (Otherwise, we are a block-level type or an anonymous type.) <p>
-     **/
+     * Are we a direct member of a package or a type? <p>
+     *
+     * (Otherwise, we are a block-level type or an anonymous type.) <p>
+     */
     public /*public readonly*/ boolean member;
 
 
     /**
-     ** Our enclosing Env; may be null for member types because of
-     ** laziness.  Use TypeSig.getEnclosingEnv() to obtain an always
-     ** non-null version of this.
-     **/
+     * Our enclosing Env; may be null for member types because of
+     * laziness.  Use TypeSig.getEnclosingEnv() to obtain an always
+     * non-null version of this.
+     */
     protected /*subclass-only*/ Env enclosingEnv;
 
     /**
-     ** Our TypeDecl; may be null only for package-member type
-     ** because of laziness.  Use getTypeDecl() to obtain an always
-     ** non-null version of this. <p>
-     **
-     ** This variable should be set only using setDecl. <p>
-     **/
+     * Our TypeDecl; may be null only for package-member type
+     * because of laziness.  Use getTypeDecl() to obtain an always
+     * non-null version of this. <p>
+     *
+     * This variable should be set only using setDecl. <p>
+     */
     //@ invariant state>=PARSED ==> myTypeDecl!=null
     //@ invariant state<PARSED ==> myTypeDecl==null
     /*@spec_public*/ protected TypeDecl myTypeDecl;
 
     /**
-     ** The CompilationUnit we belong to; null iff myTypeDecl is null
-     ** because of laziness.  Use getCompilationUnit() to obtain an
-     ** always non-null version of this.
-     **/
+     * The CompilationUnit we belong to; null iff myTypeDecl is null
+     * because of laziness.  Use getCompilationUnit() to obtain an
+     * always non-null version of this.
+     */
     //@ invariant (myTypeDecl==null) == (CU==null)
     protected CompilationUnit CU;
 
@@ -94,40 +93,40 @@ public class TypeSig extends Type {
      *                                                 *
      * Associating TypeSigs and TypeDecls:             *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Decorates <code>TypeDecl</code> nodes to point to
-     ** <code>TypeSig</code> objects.
-     **/
+     * Decorates <code>TypeDecl</code> nodes to point to
+     * <code>TypeSig</code> objects.
+     */
     //@ invariant sigDecoration.decorationType == \type(TypeSig)
     public static final ASTDecoration sigDecoration
 	= new ASTDecoration("sigDecoration");
 
 
     /**
-     ** The myTypeDecl field maps TypeSigs to TypeDecls.  The
-     ** getSig(TypeDecl) function provides the reverse mapping. <p>
-     **
-     ** Precondition: d has already been associated with a TypeSig. <p>
-     **/
+     * The myTypeDecl field maps TypeSigs to TypeDecls.  The
+     * getSig(TypeDecl) function provides the reverse mapping. <p>
+     *
+     * Precondition: d has already been associated with a TypeSig. <p>
+     */
     //@ ensures \result!=null
     public static TypeSig getSig(/*@non_null*/ TypeDecl d) {
 	TypeSig r = (TypeSig)sigDecoration.get(d);
 	Assert.notNull(r,      //@ nowarn Pre
-	       "getSig called on a TypeDecl not associated with a TypeSig");
+	       "getSig called on a TypeDecl (" + d.id + ") not associated with a TypeSig");
 	return r;
     }
 
 
     /**
-     ** Protected routine used to associate a TypeSig with a TypeDecl. <p>
-     **
-     ** It automatically creates TypeSigs for any (indirect) members
-     ** of decl and associates them properly. <p>
-     **
-     ** CU must be the CompilationUnit that decl belongs to.<p>
-     **/
+     * Protected routine used to associate a TypeSig with a TypeDecl. <p>
+     *
+     * It automatically creates TypeSigs for any (indirect) members
+     * of decl and associates them properly. <p>
+     *
+     * CU must be the CompilationUnit that decl belongs to.<p>
+     */
     //@ ensures this.myTypeDecl != null
     protected void setDecl(/*@non_null*/ TypeDecl decl,
 			 /*@non_null*/ CompilationUnit CU) {
@@ -149,19 +148,18 @@ public class TypeSig extends Type {
 	}
     }
 
-
     /***************************************************
      *                                                 *
      * Creation:                       		       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Create a TypeSig that represents a non-member type. <p>
-     **
-     ** We represent a block-level type if simpleName is non-null,
-     ** and an anonymous type otherwise. <p>
-     **/
+     * Create a TypeSig that represents a non-member type. <p>
+     *
+     * We represent a block-level type if simpleName is non-null,
+     * and an anonymous type otherwise. <p>
+     */
     //@ requires !(enclosingEnv instanceof EnvForCU)
     protected TypeSig(String simpleName,
 		      /*@non_null*/ Env enclosingEnv,
@@ -187,22 +185,22 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Create a TypeSig that represents a member type. <p>
-     **
-     ** This constructor is designed to be private to TypeSig;  
-     ** It is protected to support the Types inst pattern, but 
-     ** clients should use
-     ** OutsideEnv.lookup[Deffered] and getSig to get TypeSig's
-     ** representing member types. <p>
-     **
-     ** We represent a package-member type if enclosingType is
-     ** non-null, and a type-member type otherwise. <p>
-     **
-     ** Note: packageName should never be modified by the caller after
-     ** this call.<p>
-     **
-     ** CU must be the CompilationUnit that decl belongs to.<p>
-     **/
+     * Create a TypeSig that represents a member type. <p>
+     *
+     * This constructor is designed to be private to TypeSig;  
+     * It is protected to support the Types inst pattern, but 
+     * clients should use
+     * OutsideEnv.lookup[Deffered] and getSig to get TypeSig's
+     * representing member types. <p>
+     *
+     * We represent a package-member type if enclosingType is
+     * non-null, and a type-member type otherwise. <p>
+     *
+     * Note: packageName should never be modified by the caller after
+     * this call.<p>
+     *
+     * CU must be the CompilationUnit that decl belongs to.<p>
+     */
     //@ requires \nonnullelements(packageName)
     //@ requires (enclosingType!=null) ==> (decl!=null)
     //@ requires (decl==null) == (CU==null)
@@ -225,19 +223,19 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Create a TypeSig that represents an internal-use-only
-     ** package-member type.  Such types do not have external names
-     ** and should be avoided if at all possible since they are
-     ** kludges. <p>
-     **
-     ** This constructor should only be used by
-     ** PrepTypeDeclaration.getRootInterface().<p>
-     **
-     ** Note: packageName should never be modified by the caller after
-     ** this call.<p>
-     **
-     ** CU must be the CompilationUnit that decl belongs to.<p>
-     **/
+     * Create a TypeSig that represents an internal-use-only
+     * package-member type.  Such types do not have external names
+     * and should be avoided if at all possible since they are
+     * kludges. <p>
+     *
+     * This constructor should only be used by
+     * PrepTypeDeclaration.getRootInterface().<p>
+     *
+     * Note: packageName should never be modified by the caller after
+     * this call.<p>
+     *
+     * CU must be the CompilationUnit that decl belongs to.<p>
+     */
     //@ requires \nonnullelements(packageName)
     protected TypeSig(String[] packageName,
 		    /*@non_null*/ String simpleName,
@@ -265,13 +263,11 @@ public class TypeSig extends Type {
 	return t;
     }
     
-
-    
     /***************************************************
      *                                                 *
      * Interning by External Name for package-members: *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /*
      * We maintain a mapping from fully-qualified names to
@@ -286,24 +282,27 @@ public class TypeSig extends Type {
 
 
     /**
-     ** The map from fully-qualified external names of package-member
-     ** types to the TypeSigs representing them. <p>
-     ** 
-     ** Invariant: map's range includes all existing package-member
-     ** TypeSigs; map sends getKey(P,T) to the unique package-member
-     ** TypeSig with external name P.T.<p>
-     **
-     ** The domain type of map is String and its range type is (non-null)
-     ** TypeSigs.<p>
-     **/
+     * The map from fully-qualified external names of package-member
+     * types to the TypeSigs representing them. <p>
+     * 
+     * Invariant: map's range includes all existing package-member
+     * TypeSigs; map sends getKey(P,T) to the unique package-member
+     * TypeSig with external name P.T.<p>
+     *
+     * The domain type of map is String and its range type is (non-null)
+     * TypeSigs.<p>
+     */
     //@ invariant map.keyType == \type(String)
     //@ invariant map.elementType == \type(TypeSig)
     private static final Hashtable map = new Hashtable(101);
 
+    public static final void clear() {
+	map.clear();
+    }
 
     /**
-     ** Compute the key for map for fully-qualified type P.T.
-     **/
+     * Compute the key for map for fully-qualified type P.T.
+     */
     //@ requires \nonnullelements(P)
     //@ ensures \result!=null
     private static String getKey(String[] P, /*@non_null*/ String T) {
@@ -318,24 +317,28 @@ public class TypeSig extends Type {
 
 
     /**
-     ** If a TypeSig representing the package-member type named P.T
-     ** has been created, return it; otherwise, return null. <p>
-     **
-     ** This function should only be called by OutsideEnv. <p>
-     **/
+     * If a TypeSig representing the package-member type named P.T
+     * has been created, return it; otherwise, return null. <p>
+     *
+     * This function should only be called by OutsideEnv. <p>
+     */
     //@ requires \nonnullelements(P)
-    static /*package*/ TypeSig lookup(String[] P, /*@non_null*/ String T) {
+    static public TypeSig lookup(String[] P, /*@non_null*/ String T) {
 	return (TypeSig)map.get(getKey(P,T));
     }
 
+	// FIXME - the type lookup ends up parsing a qualified name into
+	// pieces and then reassembling them through getKey into a 
+	// qualified name.  This could be improved by providing a 
+	// direct lookup from a fully qualified name
 
     /**
-     ** If a TypeSig representing the package-member type named P.T
-     ** has been created, return it; otherwise, create such a TypeSig
-     ** then return it. <p>
-     **
-     ** This function should only be called by OutsideEnv. <p>
-     **/
+     * If a TypeSig representing the package-member type named P.T
+     * has been created, return it; otherwise, create such a TypeSig
+     * then return it. <p>
+     *
+     * This function should only be called by OutsideEnv. <p>
+     */
     //@ requires \nonnullelements(P)
     //@ ensures \result!=null
     static /*package*/ TypeSig get(String[] P, /*@non_null*/ String T) {
@@ -350,21 +353,20 @@ public class TypeSig extends Type {
 	return result;
     }
 
-
     /***************************************************
      *                                                 *
      * Lazy loading of TypeDecls:      		       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Get the non-null TypeDecl we are associated with. <p>
-     **
-     ** (Under the covers, for package-member types, this method may
-     ** cause <code>OutsideEnv</code> to parse the
-     ** <code>TypeDecl</code> in question, but this should be
-     ** transparent to most clients.) <p>
-     **/
+     * Get the non-null TypeDecl we are associated with. <p>
+     *
+     * (Under the covers, for package-member types, this method may
+     * cause <code>OutsideEnv</code> to parse the
+     * <code>TypeDecl</code> in question, but this should be
+     * transparent to most clients.) <p>
+     */
     //@ ensures \result!=null
     //@ ensures state>=PARSED
     public TypeDecl getTypeDecl() {
@@ -375,12 +377,12 @@ public class TypeSig extends Type {
     }
 
     /**
-     ** Get the non-null CompilationUnit we are associated with. <p>
-     **
-     ** (Under the covers, for package-member types, this method may
-     ** cause <code>OutsideEnv</code> to parse the type in question,
-     ** but this should be transparent to most clients.) <p>
-     **/
+     * Get the non-null CompilationUnit we are associated with. <p>
+     *
+     * (Under the covers, for package-member types, this method may
+     * cause <code>OutsideEnv</code> to parse the type in question,
+     * but this should be transparent to most clients.) <p>
+     */
     //@ ensures \result!=null
     public CompilationUnit getCompilationUnit() {
 	if (myTypeDecl==null)
@@ -391,10 +393,10 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Ensure that we have loaded our TypeDecl, invoking OutsideEnv
-     ** if needed to load a TypeDecl into us via load below.  We abort
-     ** via an assertion failure if OutsideEnv fails to load us.
-     **/
+     * Ensure that we have loaded our TypeDecl, invoking OutsideEnv
+     * if needed to load a TypeDecl into us via load below.  We abort
+     * via an assertion failure if OutsideEnv fails to load us.
+     */
     //@ ensures myTypeDecl!=null
     private void preload() {
 	if (myTypeDecl!=null)
@@ -416,27 +418,27 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Is our TypeDecl already loaded?
-     **/
+     * Is our TypeDecl already loaded?
+     */
     //@ ensures !member ==> \result
     //@ ensures \result == (myTypeDecl!=null)
-    /*package*/ boolean isPreloaded() {
+    public boolean isPreloaded() {
 	return myTypeDecl!=null;
     }
 
 
     /**
-     ** Load the non-null TypeDecl decl as our TypeDecl.
-     ** This method is used by OutsideEnv to install a TypeDecl in us once
-     ** it has been loaded.<p>
-     **
-     ** If we have already been loaded with a different TypeDecl, then
-     ** an appropriate fatal error results. <p>
-     **
-     ** Note: This method should *only* be called by OutsideEnv.load.<p>
-     **
-     ** CU must be the CompilationUnit that decl belongs to.<p>
-     **/
+     * Load the non-null TypeDecl decl as our TypeDecl.
+     * This method is used by OutsideEnv to install a TypeDecl in us once
+     * it has been loaded.<p>
+     *
+     * If we have already been loaded with a different TypeDecl, then
+     * an appropriate fatal error results. <p>
+     *
+     * Note: This method should *only* be called by OutsideEnv.load.<p>
+     *
+     * CU must be the CompilationUnit that decl belongs to.<p>
+     */
     //@ ensures myTypeDecl!=null
     /*package*/ void load(/*@non_null*/ TypeDecl decl,
 			  /*@non_null*/ CompilationUnit CU) {
@@ -454,18 +456,17 @@ public class TypeSig extends Type {
 		+ Location.toString(myTypeDecl.loc));
     }
 
-
     /***************************************************
      *                                                 *
      * Name accessor functions:			       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Return our package name as a human-readable string
-     ** suitable for display.  If we are in the unnamed package,
-     ** the constant THE_UNNAMED_PACKAGE is returned.
-     **/
+     * Return our package name as a human-readable string
+     * suitable for display.  If we are in the unnamed package,
+     * the constant THE_UNNAMED_PACKAGE is returned.
+     */
     //@ ensures \result!=null
     public String getPackageName() {
       if (packageName.length == 0)
@@ -485,9 +486,9 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Return our exact type name, omitting the package name, as a
-     ** human-readable string suitable for display.
-     **/
+     * Return our exact type name, omitting the package name, as a
+     * human-readable string suitable for display.
+     */
     //@ ensures \result!=null
     public String getTypeName() {
 	if (enclosingType==null) {
@@ -510,10 +511,10 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Return our exact fully-qualified external name as a
-     ** human-readable string suitable for display.  The package name is
-     ** omitted if it is the unnamed package.
-     **/
+     * Return our exact fully-qualified external name as a
+     * human-readable string suitable for display.  The package name is
+     * omitted if it is the unnamed package.
+     */
     //@ ensures \result!=null
     public String getExternalName() {
 	String P = getPackageName();
@@ -525,18 +526,17 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Returns a String that represents the value of this Object.
-     **/
+     * Returns a String that represents the value of this Object.
+     */
     public String toString() {
 	return getExternalName();
     }
-
 
     /***************************************************
      *                                                 *
      * ASTNode functions:			       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     public int childCount() { 
 	return 0; 
@@ -578,26 +578,25 @@ public class TypeSig extends Type {
 	return getTypeDecl().getEndLoc();
     }
 
-
     /***************************************************
      *                                                 *
      * Looking up type members:			       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Do we have a type member named id (including inherited type
-     ** members)? <p>
-     **
-     ** If we have exactly one such type member, then return it.  If
-     ** we have no such type member, return null.  If we have more
-     ** than one such type member, then if loc!=Location.NULL then a
-     ** fatal error is reported at that location via ErrorSet else one
-     ** of the relevant type members is returned.<p>
-     **
-     ** This routine does not check that the resulting type (if any)
-     ** is actually accessable. <p>
-     **/
+     * Do we have a type member named id (including inherited type
+     * members)? <p>
+     *
+     * If we have exactly one such type member, then return it.  If
+     * we have no such type member, return null.  If we have more
+     * than one such type member, then if loc!=Location.NULL then a
+     * fatal error is reported at that location via ErrorSet else one
+     * of the relevant type members is returned.<p>
+     *
+     * This routine does not check that the resulting type (if any)
+     * is actually accessable. <p>
+     */
     public TypeSig lookupType(/*@non_null*/ Identifier id, int loc) {
 	// Look locally first:
 	TypeSig result = lookupLocalType(id);
@@ -646,12 +645,12 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Do we have a type member named id (*not* including inherited
-     ** type members)?  If so, return it; otherwise, return null. <p>
-     **
-     ** This routine does not check that the resulting type (if any)
-     ** is actually accessable. <p>
-     **/
+     * Do we have a type member named id (*not* including inherited
+     * type members)?  If so, return it; otherwise, return null. <p>
+     *
+     * This routine does not check that the resulting type (if any)
+     * is actually accessable. <p>
+     */
     public TypeSig lookupLocalType(/*@non_null*/ Identifier id) {
 	TypeDeclElemVec elems = getTypeDecl().elems;
 
@@ -664,16 +663,15 @@ public class TypeSig extends Type {
 	return null;
     }
 
-
     /***************************************************
      *                                                 *
      * Environments:				       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Return our enclosing environment.
-     **/
+     * Return our enclosing environment.
+     */
     //@ ensures \result!=null
     public Env getEnclosingEnv() {
 	if (enclosingEnv!=null)
@@ -689,30 +687,29 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Return an environment for use in checking code inside us. <p>
-     **
-     ** Our instance members are considered accessible iff
-     ** staticContext is true.
-     **/
+     * Return an environment for use in checking code inside us. <p>
+     *
+     * Our instance members are considered accessible iff
+     * staticContext is true.
+     */
     //@ ensures \result!=null
     public EnvForTypeSig getEnv(boolean staticContext) {
 	return new EnvForTypeSig(getEnclosingEnv(), this, staticContext);
     }
 
-
     /***************************************************
      *                                                 *
      * Misc:					       *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /**
-     ** Are we (possibly implicitly) static? <p>
-     **
-     ** This differs from using Modifiers.isStatic because it does not
-     ** rely on Prep'ing having added the static modifier where
-     ** implicit so we can be used by Prep itself.
-     **/
+     * Are we (possibly implicitly) static? <p>
+     *
+     * This differs from using Modifiers.isStatic because it does not
+     * rely on Prep'ing having added the static modifier where
+     * implicit so we can be used by Prep itself.
+     */
     public boolean isStatic() {
 	if (Modifiers.isStatic(getTypeDecl().modifiers))
 	    return true;
@@ -731,14 +728,14 @@ public class TypeSig extends Type {
 
 
     /**
-     ** Are we a top-level type? <p>
-     **
-     ** True iff either we are a package-level type or a static member
-     ** of a top-level type. <p>
-     **
-     ** Note: This may be called during any state; it may bump
-     ** TypeSigs to the Parsed state. <p>
-     **/
+     * Are we a top-level type? <p>
+     *
+     * True iff either we are a package-level type or a static member
+     * of a top-level type. <p>
+     *
+     * Note: This may be called during any state; it may bump
+     * TypeSigs to the Parsed state. <p>
+     */
     //@ ensures enclosingType==null ==> \result
     public boolean isTopLevelType() {
 	if (enclosingType==null)
@@ -750,7 +747,6 @@ public class TypeSig extends Type {
 	return enclosingType.isTopLevelType();
     }
 
-
     //************************************************************
     //************************************************************
     //************************************************************
@@ -761,7 +757,7 @@ public class TypeSig extends Type {
      *                                                 *
      * TypeSig states and transition functions:        *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
     /*
      * The states that a TypeSig can be in.  The variable state (below)
@@ -776,14 +772,14 @@ public class TypeSig extends Type {
     public final static int CHECKED		= 6;
 
     /**
-     ** The current state of <code>this</code>.  Must be one of
-     ** <code>CREATED</code>, <code>PARSED</code>,
-     ** <code>LINKSRESOLVED</code>, <code>PREPPED</code>, or
-     ** <code>CHECKED</code>.  In most circumstances, this field
-     ** should not be written to; rather, methods of
-     ** <code>TypeSig</code> should be called to effect changes to it.
-     ** This field must never be decreased after creation time.
-     **/
+     * The current state of <code>this</code>.  Must be one of
+     * <code>CREATED</code>, <code>PARSED</code>,
+     * <code>LINKSRESOLVED</code>, <code>PREPPED</code>, or
+     * <code>CHECKED</code>.  In most circumstances, this field
+     * should not be written to; rather, methods of
+     * <code>TypeSig</code> should be called to effect changes to it.
+     * This field must never be decreased after creation time.
+     */
     public int state = CREATED;
 
 
@@ -793,14 +789,14 @@ public class TypeSig extends Type {
      */
 
     /**
-     ** Transition <code>this</code> to the supertype links resolved
-     ** state. <p>
-     **
-     ** See the TypeSig type comments for details of what this involves.<p>
-     **
-     ** A fatal error may be reported if we cannot resolve a supertype
-     ** name, or detect a cycle in the type hierarchy.<p>
-     **/
+     * Transition <code>this</code> to the supertype links resolved
+     * state. <p>
+     *
+     * See the TypeSig type comments for details of what this involves.<p>
+     *
+     * A fatal error may be reported if we cannot resolve a supertype
+     * name, or detect a cycle in the type hierarchy.<p>
+     */
     //@ modifies state
     //@ ensures state>=TypeSig.LINKSRESOLVED
     public void resolveSupertypeLinks() {
@@ -809,18 +805,18 @@ public class TypeSig extends Type {
     }
 
     /**
-     ** Transition <code>this</code> to the "prepped" state. <p>
-     **
-     ** A prepped declaration has all of the <code>TypeName</code>
-     ** nodes defining the types of its members resolved.  For a field
-     ** declaration, this means resolving the <code>type</code> field;
-     ** For a routine declaration, this means resolving
-     ** <code>TypeName</code>s that occur in the <code>args</code>,
-     ** <code>raises</code>, and <code>returnType</code> fields.<p>
-     **
-     ** See the TypeSig type comments for more details of what this
-     ** involves.<p>
-     **/
+     * Transition <code>this</code> to the "prepped" state. <p>
+     *
+     * A prepped declaration has all of the <code>TypeName</code>
+     * nodes defining the types of its members resolved.  For a field
+     * declaration, this means resolving the <code>type</code> field;
+     * For a routine declaration, this means resolving
+     * <code>TypeName</code>s that occur in the <code>args</code>,
+     * <code>raises</code>, and <code>returnType</code> fields.<p>
+     *
+     * See the TypeSig type comments for more details of what this
+     * involves.<p>
+     */
     //@ modifies state
     //@ ensures state >= PREPPED
     public void prep() {
@@ -835,13 +831,13 @@ public class TypeSig extends Type {
     }
 
     /**
-     ** Transition <code>this</code> to the "checked" state. <p>
-     **
-     ** See the TypeSig type comments for details of what this involves.<p>
-     **
-     ** A fatal error may be reported if we cannot resolve a supertype
-     ** name, or detect a cycle in the type hierarchy.<p>
-     **/
+     * Transition <code>this</code> to the "checked" state. <p>
+     *
+     * See the TypeSig type comments for details of what this involves.<p>
+     *
+     * A fatal error may be reported if we cannot resolve a supertype
+     * name, or detect a cycle in the type hierarchy.<p>
+     */
     //@ modifies state
     //@ ensures state >= CHECKED
     public void typecheck() {
@@ -856,196 +852,188 @@ public class TypeSig extends Type {
 	this.state = TypeSig.CHECKED;
     }
 
-
     /***************************************************
      *                                                 *
      * Looking up fields, methods, and constructors:   *
      *                                                 *
-     ***************************************************/
+     **************************************************/
 
+    //// Fields and methods associated with preparation of a TypeSig
 
-  //// Fields and methods associated with preparation of a TypeSig
+    /** After preparation, this field contains all field members of
+    the <code>TypeDecl</code> associated with <code>this</code>,
+    including inherited ones. */
 
-  /** After preparation, this field contains all field members of the
-    <code>TypeDecl</code> associated with <code>this</code>, including
-    inherited ones. */
-
-  // "invariant" fields.<each element>.hasParent
-  //@ invariant state>=PREPPED ==> fields!=null
+    // "invariant" fields.<each element>.hasParent
+    //@ invariant state>=PREPPED ==> fields!=null
     protected FieldDeclVec fields;
 
-  /** After preparation, this field contains all method members of the
-    <code>TypeDecl</code> associated with <code>this</code>, including
-    inherited ones. */
+    /** After preparation, this field contains all method members of
+    the <code>TypeDecl</code> associated with <code>this</code>,
+    including inherited ones. */
 
-  // "invariant" methods.<each element>.hasParent
-  //@ invariant state>=PREPPED ==> methods!=null
-  protected MethodDeclVec methods;
+    // "invariant" methods.<each element>.hasParent
+    //@ invariant state>=PREPPED ==> methods!=null
+    protected MethodDeclVec methods;
 
-  /** Returns all fields of the type declaration associated with
+    /** Returns all fields of the type declaration associated with
     <code>this</code>, including inherited ones.  (If
     <code>this</code> has not been prepped yet, this method will prep
     it (possibly triggering parsing and/or processing of other
     types).) */
 
-  // "ensures" <result elements>.hasParent
-  //@ ensures \result!=null
-  public FieldDeclVec getFields() {
-    prep();
-    Assert.notNull( fields );
-    return fields;
-  }
-
-
-  /** Similar to <code>getFields</code>, except for methods. */
-
-  // "ensures" <result elements>.hasParent
-  //@ ensures \result!=null
-  public MethodDeclVec getMethods() {
-    prep();
-    Assert.notNull( methods );
-    return methods;
-  }
-
-
-  /** TBW */
-
-  //@ requires \nonnullelements(args) && caller!=null
-  //@ ensures \result!=null
-  public ConstructorDecl lookupConstructor(Type[] args, TypeSig caller) 
-    throws LookupException
-  {
-    prep();
-
-    // Holds the most specific, applicable, accessible constructor found so far
-    ConstructorDecl mostSpecific = null;
-    boolean somethingFound = false;
-    TypeDecl decl = getTypeDecl();
-
-  search:
-    for(int i = 0; i < decl.elems.size(); i++) {
-      TypeDeclElem elem = decl.elems.elementAt(i);
-      if (elem instanceof ConstructorDecl) {
-	ConstructorDecl md = (ConstructorDecl)elem;
-	if (md.args.size() == args.length
-	    && TypeCheck.inst.canAccess(caller, this, md.modifiers,
-					md.pmodifiers) ) {
-	  // accessible, same name and number of args
-
-	  somethingFound = true;
-	  for(int j = 0; j < args.length; j++)
-	    if (! Types.isInvocationConvertable(args[j], 
-						md.args.elementAt(j).type))
-	      continue search;
-	  // accessible and applicable
-	
-	  if (mostSpecific == null
-	      || Types.routineMoreSpecific(md, mostSpecific))
-	    mostSpecific = md;
-	  else if (! Types.routineMoreSpecific(mostSpecific, md))
-	    throw new LookupException( LookupException.AMBIGUOUS );
-	}
-      }
+    // "ensures" <result elements>.hasParent
+    //@ ensures \result!=null
+    public FieldDeclVec getFields() {
+        prep();
+        Assert.notNull( fields );
+        return fields;
     }
+    
+    /** Similar to <code>getFields</code>, except for methods. */
 
-    if (mostSpecific != null)  
-       return mostSpecific;
-    else if (somethingFound) 
-       throw new LookupException( LookupException.BADTYPECOMBO );
-    else 
-       throw new LookupException( LookupException.NOTFOUND );
-  }
-
-  /** TBW */
-
-  //@ ensures \result!=null
-  //@ ensures \result.id == id
-  public FieldDecl lookupField(Identifier id, /*@ non_null */ TypeSig caller) 
-    throws LookupException
-  {
-    FieldDeclVec fields = getFields();
-    FieldDecl r = null;
-    for(int i=0; i<fields.size(); i++ ) {
-      FieldDecl fd = fields.elementAt(i);
-      if (fd.id == id)
-	if (r == null) r = fd;
-	else throw new LookupException( LookupException.AMBIGUOUS );
+    // "ensures" <result elements>.hasParent
+    //@ ensures \result!=null
+    public MethodDeclVec getMethods() {
+        prep();
+        Assert.notNull( methods );
+        return methods;
     }
+    
+    
+    /** TBW */
+    
+    //@ requires \nonnullelements(args) && caller!=null
+    //@ ensures \result!=null
+    public ConstructorDecl lookupConstructor(Type[] args, TypeSig caller) 
+            throws LookupException
+    {
+        prep();
+        
+        // Holds the most specific, applicable, accessible constructor found so far
+        ConstructorDecl mostSpecific = null;
+        boolean somethingFound = false;
+        TypeDecl decl = getTypeDecl();
+        
+        search:
+        for(int i = 0; i < decl.elems.size(); i++) {
+            TypeDeclElem elem = decl.elems.elementAt(i);
+            if (elem instanceof ConstructorDecl) {
+                ConstructorDecl md = (ConstructorDecl)elem;
+                if (md.args.size() == args.length
+                    && TypeCheck.inst.canAccess(caller, this, md.modifiers,
+                                                md.pmodifiers) ) {
+                    // accessible, same name and number of args
+                    
+                    somethingFound = true;
+                    for(int j = 0; j < args.length; j++)
+                        if (! Types.isInvocationConvertable(args[j], 
+                                                            md.args.elementAt(j).type))
+                            continue search;
+                    // accessible and applicable
+                    
+                    if (mostSpecific == null
+                        || Types.routineMoreSpecific(md, mostSpecific))
+                        mostSpecific = md;
+                    else if (! Types.routineMoreSpecific(mostSpecific, md))
+                        throw new LookupException( LookupException.AMBIGUOUS );
+                }
+            }
+        }
+        
+        if (mostSpecific != null)  
+            return mostSpecific;
+        else if (somethingFound) 
+            throw new LookupException( LookupException.BADTYPECOMBO );
+        else 
+            throw new LookupException( LookupException.NOTFOUND );
+    }
+    
+    /** TBW */
+    
+    //@ ensures \result!=null
+    //@ ensures \result.id == id
+    public FieldDecl lookupField(Identifier id, /*@ non_null */ TypeSig caller) 
+            throws LookupException
+    {
+        FieldDeclVec fields = getFields();
+        FieldDecl r = null;
+        for(int i=0; i<fields.size(); i++ ) {
+            FieldDecl fd = fields.elementAt(i);
+            if (fd.id == id)
+                if (r == null) r = fd;
+                else throw new LookupException( LookupException.AMBIGUOUS );
+        }
+        
+        if (r == null) 
+            throw new LookupException( LookupException.NOTFOUND );
+        else if (! TypeCheck.inst.canAccess(caller, this, r.modifiers,
+                                            r.pmodifiers))
+            throw new LookupException( LookupException.NOTACCESSIBLE );
+        else return r;
+    }
+    
+    
+    /** TBW */
+    
+    public boolean hasField(Identifier id) {
+        FieldDeclVec fields = getFields();
+        for(int i=0; i<fields.size(); i++)
+            if (fields.elementAt(i).id == id) return true;
+        return false;
+    }
+    
+    /** TBW */
+    
+    //@ requires \nonnullelements(args) && caller!=null
+    //@ ensures \result!=null
+    //@ ensures \result.id == id
+    public MethodDecl lookupMethod(Identifier id, Type[] args, TypeSig caller) 
+            throws LookupException
+    {
+        MethodDeclVec methods = getMethods();
+        
+        // Holds the most specific, applicable, accessible method found so far
+        MethodDecl mostSpecific = null;
+        boolean somethingFound = false;
+        
+        search:
+        for(int i = 0; i < methods.size(); i++) {
+            MethodDecl md = methods.elementAt(i);
+            if (md.id == id 
+                && md.args.size() == args.length
+                && TypeCheck.inst.canAccess(caller, this, md.modifiers,
+                                            md.pmodifiers)) {
+                // accessible, same name and number of args
 
-    if (r == null) 
-      throw new LookupException( LookupException.NOTFOUND );
-    else if (! TypeCheck.inst.canAccess(caller, this, r.modifiers,
-					r.pmodifiers))
-      throw new LookupException( LookupException.NOTACCESSIBLE );
-    else return r;
-  }
-
-
-  /** TBW */
-
-  public boolean hasField(Identifier id) {
-    FieldDeclVec fields = getFields();
-    for(int i=0; i<fields.size(); i++)
-      if (fields.elementAt(i).id == id) return true;
-    return false;
-  }
-
-  /** TBW */
-
-  //@ requires \nonnullelements(args) && caller!=null
-  //@ ensures \result!=null
-  //@ ensures \result.id == id
-  public MethodDecl lookupMethod(Identifier id, Type[] args, TypeSig caller) 
-    throws LookupException
-  {
-    MethodDeclVec methods = getMethods();
-
-    // Holds the most specific, applicable, accessible method found so far
-    MethodDecl mostSpecific = null;
-    boolean somethingFound = false;
-
-  search:
-    for(int i = 0; i < methods.size(); i++) {
-      MethodDecl md = methods.elementAt(i);
-      if (md.id == id 
-	  && md.args.size() == args.length
-	  && TypeCheck.inst.canAccess(caller, this, md.modifiers,
-				      md.pmodifiers)) {
-	// accessible, same name and number of args
-
-	somethingFound = true;
-	for(int j=0; j<args.length; j++)
-	  if(! Types.isInvocationConvertable(args[j], 
-					     md.args.elementAt(j).type))
-	    continue search;
-	// accessible and applicable
+                somethingFound = true;
+                for(int j=0; j<args.length; j++)
+                    if(! Types.isInvocationConvertable(args[j], 
+                                                       md.args.elementAt(j).type))
+                        continue search;
+                // accessible and applicable
       
-	if (mostSpecific == null 
-	    || Types.routineMoreSpecific(md, mostSpecific))
-	  mostSpecific = md;
-	else if (! Types.routineMoreSpecific(mostSpecific, md))
-	  throw new LookupException( LookupException.AMBIGUOUS );
-      }
+                if (mostSpecific == null 
+                    || Types.routineMoreSpecific(md, mostSpecific))
+                    mostSpecific = md;
+                else if (! Types.routineMoreSpecific(mostSpecific, md))
+                    throw new LookupException( LookupException.AMBIGUOUS );
+            }
+        }
+
+        if (mostSpecific != null) 
+            return mostSpecific;
+        else if (somethingFound) 
+            throw new LookupException( LookupException.BADTYPECOMBO );
+        else 
+            throw new LookupException( LookupException.NOTFOUND );
     }
 
-    if (mostSpecific != null) 
-       return mostSpecific;
-    else if (somethingFound) 
-       throw new LookupException( LookupException.BADTYPECOMBO );
-    else 
-       throw new LookupException( LookupException.NOTFOUND );
-  }
-
-
-
-
     //************************************************************
     //************************************************************
     //************************************************************
     //************************************************************
     //************************************************************
-
-
 
 /**
 
@@ -1292,21 +1280,19 @@ public class TypeSig extends Type {
 
   */
 
-
-
     /**
-     ** Gets the TypeSig recorded by <code>setSig</code>, or null.
-     **/
+     * Gets the TypeSig recorded by <code>setSig</code>, or null.
+     */
     public static TypeSig getRawSig(/*@non_null*/ TypeName n) {
 	TypeSig r = (TypeSig)sigDecoration.get(n);
 	return r;
     }
 
     /**
-     ** Gets the TypeSig recorded by <code>setSig</code>.
-     **
-     ** Precondition: n has been resolved.
-     **/
+     * Gets the TypeSig recorded by <code>setSig</code>.
+     *
+     * Precondition: n has been resolved.
+     */
     //@ ensures \result!=null
     public static TypeSig getSig(/*@non_null*/ TypeName n) {
 	TypeSig r = (TypeSig)sigDecoration.get(n);
@@ -1322,13 +1308,10 @@ public class TypeSig extends Type {
 	return r;
     }
 
-
-
     public static void setSig(/*@non_null*/ TypeName n,
 			      /*@non_null*/ TypeSig sig) {
 	sigDecoration.set(n, sig);
     }
-
 
     public final boolean isSubtypeOf(TypeSig s2) {
 	if (state < TypeSig.LINKSRESOLVED)
@@ -1362,45 +1345,51 @@ public class TypeSig extends Type {
 	return false;
     }
 
+    //// Helper functions
 
-  //// Helper functions
-
-  //@ requires s!=null
-  public final boolean inSamePackageAs(TypeSig s) {
-    String[] p1 = this.packageName;
-    String[] p2 = s.packageName;
-    if (p1.length != p2.length) return false;
-    for(int i = 0; i < p1.length; i++)
-      if (! p1[i].equals(p2[i])) return false;
-    return true;
-  }
-
-  /** Check invariants of a TypeSig, raising an exception if
-    they don't hold. */
-
-  public void check() {
-    Assert.notFalse(state!=RESOLVINGLINKS);		    //@ nowarn Pre
-
-    if (state >= CREATED) {
-      if (state == CREATED)
-	  Assert.notFalse(myTypeDecl == null);
+    //@ requires s!=null
+    public final boolean inSamePackageAs(TypeSig s) {
+        String[] p1 = this.packageName;
+        String[] p2 = s.packageName;
+        if (p1.length != p2.length) return false;
+        for(int i = 0; i < p1.length; i++)
+            if (! p1[i].equals(p2[i])) return false;
+        return true;
     }
 
-    if (state >= PARSED) {
-      Assert.notNull(myTypeDecl);
-      Assert.notFalse(this == getSig(myTypeDecl));	    //@ nowarn Pre
-    }
-  }
+    /** Check invariants of a TypeSig, raising an exception if
+     they don't hold. */
 
-  /** Check invariants of a TypeSig, raising an exception if
-    they don't hold. */
+    public void check() {
+        Assert.notFalse(state!=RESOLVINGLINKS);		    //@ nowarn Pre
 
-  public void deepCheck() {
-    Info.out("[checking deep invariants on " + this + "]");
-    check();
-    if (state >= PARSED) {
-      myTypeDecl.check();
-      CheckInvariants.checkTypeDeclOfSig(this);
+        if (state >= CREATED) {
+            if (state == CREATED)
+                Assert.notFalse(myTypeDecl == null);
+        }
+
+        if (state >= PARSED) {
+            Assert.notNull(myTypeDecl);
+            Assert.notFalse(this == getSig(myTypeDecl));	    //@ nowarn Pre
+        }
     }
-  }
-}
+
+    /** Check invariants of a TypeSig, raising an exception if
+     they don't hold. */
+
+    public void deepCheck() {
+        Info.out("[checking deep invariants on " + this + "]");
+        check();
+        if (state >= PARSED) {
+            myTypeDecl.check();
+            CheckInvariants.checkTypeDeclOfSig(this);
+        }
+    }
+} // end of class TypeSig
+
+/*
+ * Local Variables:
+ * Mode: Java
+ * fill-column: 85
+ * End:
+ */

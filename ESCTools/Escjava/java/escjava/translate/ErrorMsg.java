@@ -18,17 +18,18 @@ import escjava.ast.TagConstants;
 
 
 /**
- ** Provides printing of error messages to the user.
- **/
+ * Provides printing of error messages to the user.
+ */
 
-public final class ErrorMsg {
-  
-    /** Prints an error message for proof obligation <code>name</code>,
-     * where <code>labelList</code> and <code>counterexampleContext</code>
-     * are labels and counterexample from Simplify.
-     * Error messages are printed to <code>out</code>.
-     **/
-  
+public final class ErrorMsg
+{
+    /**
+     * Prints an error message for proof obligation <code>name</code>,
+     * where <code>labelList</code> and
+     * <code>counterexampleContext</code> are labels and
+     * counterexample from Simplify.  Error messages are printed to
+     * <code>out</code>.
+     */
     public static void print(String name,
 			     SList labelList,
 			     SList counterexampleContext,
@@ -38,11 +39,13 @@ public final class ErrorMsg {
 	try {
 	    int cLabels = labelList.length();
 	    int iErrorLabel = -1;
+	    String tail = null;
 	    for (int i = 0; i < cLabels; i++) {
 		String s = labelList.at(i).getAtom().toString();
 		if (isErrorLabel(s)) {
-		    printErrorMessage(s, counterexampleContext, rd, directTargets, out);
+		    printErrorMessage(s, counterexampleContext, rd, directTargets, out, false);
 		    iErrorLabel = i;
+		    tail = s.substring(s.indexOf('@'));
 		    break;
 		}	  
 	    }
@@ -52,7 +55,7 @@ public final class ErrorMsg {
 	    }
 
 	    // print the execution trace info if requested
-	    if (Main.traceInfo > 0) {
+	    if (Main.options().traceInfo > 0) {
 		// copy the trace labels to a String array
 		String traceLabels[] = new String[cLabels];
 		int index = 0;
@@ -72,7 +75,7 @@ public final class ErrorMsg {
 		}
 	    }
       
-	    if (Main.counterexample) {
+	    if (Main.options().counterexample) {
 		out.println("Counterexample context:");
 		SList prunedCC = pruneCC(counterexampleContext);
 		int n = prunedCC.length();
@@ -84,7 +87,7 @@ public final class ErrorMsg {
 		out.println();
 	    }     
 
-	    if (Info.on || Main.pcc) {
+	    if (Info.on || Main.options().pcc) {
 		Assert.notFalse(counterexampleContext.length() > 1 &&
 				counterexampleContext.at(0).toString().equals("AND"));
 		out.println("Full counterexample context:");
@@ -100,7 +103,11 @@ public final class ErrorMsg {
 	    for (int i = 0; i < cLabels; i++) {
 		String label = labelList.at(i).getAtom().toString();
 		if (i == iErrorLabel || label.startsWith("vc.") ||
-		    (Main.traceInfo > 0 && isTraceLabel(label))) {
+		    (Main.options().traceInfo > 0 && isTraceLabel(label))) {
+		    continue;
+		}
+		if (label.endsWith(tail)) {
+		    printErrorMessage(label, counterexampleContext, rd, directTargets, out, true);
 		    continue;
 		}
 		if (!userLabels) {
@@ -120,29 +127,32 @@ public final class ErrorMsg {
     }
 
     public static void printSeparatorLine(/*@ non_null */ PrintStream out) {
-	if (!Main.quiet) {
+	if (!Main.options().quiet) {
 	    out.println("------------------------------------------------------------------------");
 	}
     }
 
-    /** Returns whether or not <code>s</code> is string that indicates
+    /**
+     * Returns whether or not <code>s</code> is string that indicates
      * which ESC/Java check the program violates.
      *
-     * Requires <code>s</code> to be a label output by an ESC/Java
-     * run of Simplify.
-     **/
+     * Requires <code>s</code> to be a label output by an ESC/Java run
+     * of Simplify.
+     */
 
     private static boolean isErrorLabel(String s) {
 	return s.indexOf('@') != -1;
     }
 
 
-    /** Returns whether or not <code>s</code> is string that indicates
-     * information about the execution trace in the counterexample context.
+    /**
+     * Returns whether or not <code>s</code> is string that indicates
+     * information about the execution trace in the counterexample
+     * context.
      *
      * Requires <code>s</code> to be a label output by an ESC/Java
      * run of Simplify.
-     **/
+     */
 
     static boolean isTraceLabel(/*@ non_null */ String s) {
 	return s.startsWith("trace.");
@@ -157,7 +167,8 @@ public final class ErrorMsg {
 					  SList counterexampleContext,
 					  /*@ non_null */ RoutineDecl rd,
 					  /*@ non_null */ Set directTargets,
-					  /*@ non_null */ PrintStream out)
+					  /*@ non_null */ PrintStream out,
+					  boolean assocOnly)
 	throws SExpTypeError {
 
 	if (counterexampleContext == null) {
@@ -188,7 +199,9 @@ public final class ErrorMsg {
 	int tag = TagConstants.checkFromString(s);
 	String msg = chkToMsg( tag, hasAssocDecl );
 
-	ErrorSet.warning( locUse, 
+	if (msg == null) return;
+
+	if (!assocOnly) ErrorSet.warning( locUse, 
 			  msg+" (" + TagConstants.toString(tag) + ")" );
 
 	if( locDecl != Location.NULL && !Location.isWholeFileLoc(locDecl)) {
@@ -203,7 +216,7 @@ public final class ErrorMsg {
 	    displayInvariantContext(counterexampleContext, out);
 	}
 
-	if (Main.suggest) {
+	if (Main.options().suggest) {
 	    Object auxInfo;
 	    if (auxID == -1) {
 		auxInfo = null;
@@ -358,6 +371,8 @@ public final class ErrorMsg {
 	    //@ unreachable
 	    Assert.fail("Bad tag");
 	    break;
+	case TagConstants.CHKQUIET:
+	    break;
 	}
 	return r;
     }
@@ -501,7 +516,7 @@ public final class ErrorMsg {
     private static void displayInvariantContext(/*@ non_null */ SList counterexampleContext,
 						/*@ non_null */ PrintStream out)
 	throws SExpTypeError {
-	if (Main.plainWarning)
+	if (Main.options().plainWarning)
 	    return;
 
 	boolean headerDisplayed = false;

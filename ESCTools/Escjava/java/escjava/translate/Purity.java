@@ -10,6 +10,7 @@ import escjava.tc.Types;
 
 import javafe.util.Assert;
 import javafe.util.Info;
+import javafe.util.Location;
 
 
 public abstract class Purity {
@@ -62,6 +63,7 @@ public abstract class Purity {
     int tag = expr.getTag();
 
     switch (tag) {
+    case TagConstants.SETCOMPEXPR:
     case TagConstants.NEWINSTANCEEXPR:
     case TagConstants.ASSIGN:
     case TagConstants.ASGMUL:
@@ -92,6 +94,7 @@ public abstract class Purity {
     case TagConstants.NULLLIT:
     case TagConstants.VARIABLEACCESS:
     case TagConstants.CLASSLITERAL:
+    case TagConstants.TYPEEXPR:  // FIXME - TYPE-EQUIV
       return;
 
     case TagConstants.ARRAYINIT: 
@@ -130,7 +133,8 @@ public abstract class Purity {
 
     default:
       //@ unreachable;
-      Assert.fail("UnknownTag<" + tag + ">");
+      Assert.fail("Tag " + TagConstants.toString(tag) + " " +
+		Location.toString(expr.getStartLoc()) + " " + expr);
     }
   }
 }

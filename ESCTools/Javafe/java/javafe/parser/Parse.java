@@ -3,7 +3,6 @@
 package javafe.parser;
 
 import javafe.ast.*;
-import javafe.parser.TagConstants; // Work around compiler bug
 import javafe.util.StackVector;
 import javafe.util.ErrorSet;
 
@@ -11,29 +10,29 @@ import javafe.util.CorrelatedReader;	// For test harness only
 import javafe.util.Location;
 
 /**
+ * Parses java source.
+ * 
+ * <p> Uses the static <code>make*()</code> methods of the classes of
+ * the <code>javafe.ast</code> package to create AST nodes.
+ * 
+ * <p> The main entry point is the method
+ * {@link #parseStream(CorrelatedReader, boolean)}.
+ * 
+ * <P>Each parsing method for a particular syntactic unit is
+ * documented with appropriate grammar production rules for that
+ * syntactic unit.  These grammar rules follow the conventions
+ * described in "The Java Language Specification", with the addition
+ * of the symbols '(', ')', '[', ']', '*', '+', and '|', which have
+ * their usual meaning. When necessary, we denote the corresponding
+ * concrete tokens using LPAREN, RPAREN, LSQBRACKET, RSQBRACKET, STAR,
+ * PLUS and BITOR.
+ * 
+ * @see javafe.ast.ASTNode
+ * @see javafe.parser.ParseStmt
+ */
 
-Parses java source.
-
-<P>Uses the static <TT>make</TT> methods of <TT>javafe.ast.X</TT>
-classes to create AST nodes.
-
-<P>The main entry point is the method
-<code>parseStream(CorrelatedReader, boolean)</codeT>.
-
-<P>Each parsing method for a particular syntactic unit is documented
-with appropriate grammar production rules for that syntactic unit.
-These grammar rules follow the conventions described in "The Java
-Language Specification", with the addition of the symbols '(', ')',
-'[', ']', '*', '+', and '|', which have their usual meaning. When
-necessary, we denote the corresponding concrete tokens using LPAREN,
-RPAREN, LSQBRACKET, RSQBRACKET, STAR, PLUS and BITOR.
-
-@see javafe.ast.ASTNode
-@see javafe.ast.ParseStmt
-*/
-
-public class Parse extends ParseStmt {
-
+public class Parse extends ParseStmt
+{
     public Parse() {
 	//@ set seqTypeName.elementType = \type(TypeName)
 	//@ set seqTypeName.owner = this
@@ -49,32 +48,32 @@ public class Parse extends ParseStmt {
     }
 
     /**
-     ** Internal working storage for many Parse functions.
-     **/
+     * Internal working storage for many Parse functions.
+     */
     //@ invariant seqTypeName.elementType == \type(TypeName)
     //@ invariant seqTypeName.owner == this
     protected final /*@non_null*/ StackVector seqTypeName
 	= new StackVector();
 
     /**
-     ** Internal working storage for many Parse functions.
-     **/
+     * Internal working storage for many Parse functions.
+     */
     //@ invariant seqFormalParaDecl.elementType == \type(FormalParaDecl)
     //@ invariant seqFormalParaDecl.owner == this
     protected final /*@non_null*/ StackVector seqFormalParaDecl
 	= new StackVector();
 
     /**
-     ** Internal working storage for many Parse functions.
-     **/
+     * Internal working storage for many Parse functions.
+     */
     //@ invariant seqImportDecl.elementType == \type(ImportDecl)
     //@ invariant seqImportDecl.owner == this
     protected final /*@non_null*/ StackVector seqImportDecl
 	= new StackVector();
 
     /**
-     ** Internal working storage for many Parse functions.
-     **/
+     * Internal working storage for many Parse functions.
+     */
     //@ invariant seqTypeDecl.elementType == \type(TypeDecl)
     //@ invariant seqTypeDecl.owner == this
     protected final /*@non_null*/ StackVector seqTypeDecl
@@ -93,7 +92,7 @@ public class Parse extends ParseStmt {
     @see javafe.util.ErrorSet
     */
 
-  //@ requires in!=null
+  //@ requires in != null
   public CompilationUnit parseStream(CorrelatedReader in, boolean specOnly) {
     if (parseStreamLexer == null) parseStreamLexer = new Lex(null, true);
     parseStreamLexer.restart(in);
@@ -111,12 +110,14 @@ public class Parse extends ParseStmt {
       To handle pragmas, call this method directly 
       with an appropriate <TT>Lex</TT> object.
     */
+  // specOnly means parse without keeping the bodies of methods/constructors/..
 
-  //@ requires l!=null && l.m_in!=null
-  //@ ensures \result!=null
+  //@ requires l != null && l.m_in != null
+  //@ ensures \result != null
   public CompilationUnit parseCompilationUnit(Lex l, boolean specOnly) {
     Name pkgName = null;
     int loc = l.startingLoc;
+
 
     /* Optional PackageDeclaration: package name ; */
     if( l.ttype == TagConstants.PACKAGE ) {
@@ -127,8 +128,9 @@ public class Parse extends ParseStmt {
 
     /* Import Declarations */
     seqImportDecl.push();
-    while( l.ttype == TagConstants.IMPORT ) 
+    while( l.ttype == TagConstants.IMPORT ) { 
       seqImportDecl.addElement( parseImportDeclaration( l ) );
+    }
     ImportDeclVec imports = ImportDeclVec.popFromStackVector(seqImportDecl);
 
     /* Type Declarations */
@@ -155,9 +157,9 @@ public class Parse extends ParseStmt {
     </PRE>
    */
         
-  //@ requires l!=null && l.m_in!=null
-  //@ ensures \result!=null
-  ImportDecl parseImportDeclaration(Lex l) {
+  //@ requires l != null && l.m_in != null
+  //@ ensures \result != null
+  protected ImportDecl parseImportDeclaration(Lex l) {
     int loc = l.startingLoc;
     l.getNextToken();                // swallow import keyword
     Name name = parseName(l);
@@ -190,8 +192,8 @@ public class Parse extends ParseStmt {
      </PRE>
    */
 
-  //@ requires l!=null && l.m_in!=null
-  //@ ensures \result!=null
+  //@ requires l != null && l.m_in != null
+  //@ ensures \result != null
   TypeDecl parseTypeDeclaration(Lex l, boolean specOnly) {
     TypeDeclElemVec extras = null;
     if (l.ttype == TagConstants.TYPEDECLELEMPRAGMA) {
@@ -259,8 +261,9 @@ public class Parse extends ParseStmt {
     
     /* Build up Vec of TypeDeclElems in class or interface */
     seqTypeDeclElem.push();
-    while( l.ttype != TagConstants.RBRACE ) 
+    while( l.ttype != TagConstants.RBRACE ) {
       parseTypeDeclElemIntoSeqTDE( l, keyword, id, specOnly );
+    }
     TypeDeclElemVec elems =
 	TypeDeclElemVec.popFromStackVector( seqTypeDeclElem );
 
@@ -289,8 +292,8 @@ public class Parse extends ParseStmt {
       in the input stream. 
       Use this to match the beginning of a constructor or method declration
       versus the beginning of a field declaration.
-  **/
-    //@ requires l!=null && l.m_in!=null
+  */
+    //@ requires l != null && l.m_in != null
     private boolean atStartOfConstructorOrMethod(Lex l) {
 	int i = 1;
 	while ((l.lookahead(i) == TagConstants.TYPEMODIFIERPRAGMA)) {
@@ -344,9 +347,9 @@ public class Parse extends ParseStmt {
       </PRE>
    */
 
-  //@ requires l!=null && l.m_in!=null
-  //@ ensures \result!=null
-  TypeNameVec parseTypeNames(Lex l, int keyword)
+  //@ requires l != null && l.m_in != null
+  //@ ensures \result != null
+  protected TypeNameVec parseTypeNames(Lex l, int keyword)
   {
     if( l.ttype != keyword ) 
       return TypeNameVec.make();
@@ -471,15 +474,21 @@ VariableDeclarator:
 
       // allow more modifier pragmas
       modifierPragmas = parseMoreModifierPragmas( l, modifierPragmas );
+      BlockStmt body = null;
+      int locOpenBrace = Location.NULL;
+      if ( l.ttype == TagConstants.SEMICOLON ) {
+          l.getNextToken();   // swallow semicolon
+      } else {
+	  locOpenBrace = l.startingLoc;
+	  // specOnly means do not keep any bodies of methods/constructors/etc.
+	  body = specOnly ? parseBlock(l, true)
+				    : parseConstructorBody(l);
 
-      int locOpenBrace = l.startingLoc;
-      BlockStmt body = specOnly ? parseBlock(l, true)
-				: parseConstructorBody(l);
-
+      }
       seqTypeDeclElem.addElement( ConstructorDecl.make( modifiers,
-						        modifierPragmas,
-						        tmodifiers,
-						        args, 
+							modifierPragmas,
+							tmodifiers,
+							args, 
 							raises, body,
 							locOpenBrace,
 							loc, locId, 
@@ -488,10 +497,11 @@ VariableDeclarator:
     } 
     else if( l.ttype == TagConstants.TYPEDECLELEMPRAGMA ) {
       // TypeDeclElemPragma
-      if( modifiers != Modifiers.NONE || modifierPragmas != null )
-	fail(l.startingLoc, 
-	     "Cannot have modifiers on a TypeDeclElem pragma");
+      if( modifiers != Modifiers.NONE)
+	ErrorSet.error(l.startingLoc, 
+	     "Cannot have modifiers outside of the annotation on a TypeDeclElem pragma");
       TypeDeclElemPragma pragma = (TypeDeclElemPragma)l.auxVal;
+      pragma.decorate(modifierPragmas);
       seqTypeDeclElem.addElement( pragma );
       l.getNextToken();
     }
@@ -524,6 +534,7 @@ VariableDeclarator:
           l.getNextToken();   // swallow semicolon
 	  locOpenBrace = Location.NULL;
           body = null;
+// FIXME - check that this is specOnly for no body ?
         } else {
           if( keyword == TagConstants.INTERFACE ) 
             fail(l.startingLoc, 
@@ -574,7 +585,18 @@ VariableDeclarator:
 	    parseMoreModifierPragmas( l, modifierPragmas );
 
 	    // End of Declaration 
+
+	    // JML added some clauses that can follow type declarations.
+	    // This bit of hackery is to check if there are any such
+	    // and associate them with the correct declaration.  All other
+	    // modifiers precede the declaration with which they are 
+	    // associated (or at least precede the terminating semicolon).
             l.getNextToken();
+	    while (l.ttype == TagConstants.POSTMODIFIERPRAGMA) {
+		modifierPragmas.addElement((ModifierPragma)l.auxVal);
+		l.getNextToken();
+	    }
+
             return;
           } else {
             expect( l, TagConstants.COMMA );
@@ -599,8 +621,8 @@ VariableDeclarator:
     <PRE>       
    */
 
-  //@ requires l!=null && l.m_in!=null
-  //@ ensures \result!=null
+  //@ requires l != null && l.m_in != null
+  //@ ensures \result != null
   public FormalParaDeclVec parseFormalParameterList(Lex l) 
   {
     /* Should be on LPAREN */
