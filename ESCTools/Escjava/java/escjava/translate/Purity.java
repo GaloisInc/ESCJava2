@@ -10,6 +10,7 @@ import escjava.tc.Types;
 
 import javafe.util.Assert;
 import javafe.util.Info;
+import javafe.util.Location;
 
 
 public abstract class Purity {
@@ -62,6 +63,7 @@ public abstract class Purity {
     int tag = expr.getTag();
 
     switch (tag) {
+    case TagConstants.SETCOMPEXPR:
     case TagConstants.NEWINSTANCEEXPR:
     case TagConstants.ASSIGN:
     case TagConstants.ASGMUL:
@@ -92,6 +94,7 @@ public abstract class Purity {
     case TagConstants.NULLLIT:
     case TagConstants.VARIABLEACCESS:
     case TagConstants.CLASSLITERAL:
+    case TagConstants.TYPEEXPR:  // FIXME - TYPE-EQUIV
       return;
 
     case TagConstants.ARRAYINIT: 
@@ -121,7 +124,7 @@ public abstract class Purity {
 	  if (n instanceof VarInit) {
 	    VarInit child = (VarInit)n;
 	    decorate(child);
-	    impure = impure | impure(child);
+	    impure = impure || impure(child);
 	  }
 	}
 	if (impure) makeImpure(expr);
@@ -129,8 +132,26 @@ public abstract class Purity {
       }
 
     default:
-      //@ unreachable;
-      Assert.fail("UnknownTag<" + tag + ">");
+      if (expr instanceof GeneralizedQuantifiedExpr) {
+	GeneralizedQuantifiedExpr q = (GeneralizedQuantifiedExpr)expr;
+        boolean impure = false;
+	decorate(q.expr);
+	impure = impure || impure(q.expr);
+	if (q.rangeExpr != null) {
+	    decorate(q.rangeExpr);
+	    impure = impure || impure(q.rangeExpr);
+	}
+	if (impure) makeImpure(expr);
+	if (impure) {
+	    javafe.util.ErrorSet.error(q.getStartLoc(),
+		"A quantified expression may not contain impure expressions");
+	}
+	return;
+      } else {
+	  //@ unreachable;
+	  Assert.fail("Tag " + TagConstants.toString(tag) + " " +
+		    Location.toString(expr.getStartLoc()) + " " + expr);
+      }
     }
   }
 }

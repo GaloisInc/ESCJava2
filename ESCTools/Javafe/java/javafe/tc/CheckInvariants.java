@@ -4,7 +4,6 @@ package javafe.tc;
 
 
 import javafe.ast.*;
-import javafe.tc.TagConstants; // Work around compiler bug
 import javafe.util.Assert;
 
 
@@ -24,7 +23,7 @@ class CheckInvariants {
 	Assert.notNull(supers);  //@ nowarn Pre
       if (supers != null) {
 	Assert.notFalse(supers == sig.getEnclosingEnv()  //@ nowarn Pre
-		   .lookupTypeName(supern.name)); 
+		   .lookupTypeName(null,supern.name)); 
 	Assert.notFalse((sig.state < TypeSig.CHECKED		//@ nowarn Pre
 			 && sig.state <= supers.state)
 			|| supers.state >= TypeSig.PREPPED);
@@ -41,7 +40,7 @@ class CheckInvariants {
 	    Assert.notNull(supers);			//@ nowarn Pre
 	if (supers != null) {
 	  Assert.notFalse(supers ==			//@ nowarn Pre
-		sig.getEnclosingEnv().lookupTypeName(supern.name));
+		sig.getEnclosingEnv().lookupTypeName(null,supern.name));
 	  Assert.notFalse((sig.state < TypeSig.CHECKED	//@ nowarn Pre
 			   && sig.state <= supers.state)
 			  || supers.state >= TypeSig.PREPPED);
@@ -213,6 +212,14 @@ class CheckInvariants {
       }
 
     case TagConstants.SKIPSTMT:
+      return;
+
+    case TagConstants.ASSERTSTMT:
+      {
+	AssertStmt a = (AssertStmt)s;
+	checkExpr(sig,a.pred);
+	if (a.label != null) checkExpr(sig,a.label);
+      }
       return;
 
     case TagConstants.SWITCHLABEL:

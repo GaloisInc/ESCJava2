@@ -38,6 +38,9 @@ public interface TypeDeclElem {
 
     public void setParent(/*@non_null*/ TypeDecl p);
 
+    public int getModifiers();
+    public void setModifiers(int m);
 	
+    public int getStartLoc();
 }
 

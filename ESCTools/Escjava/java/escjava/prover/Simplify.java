@@ -28,7 +28,7 @@ import javafe.util.*;
  **
  ** @see SExp
  ** @see SubProcess
- ** @see CECEnum
+ ** @see escjava.prover.CECEnum
  **/
 
 public class Simplify {
@@ -95,8 +95,12 @@ public class Simplify {
      **/
     public Simplify() {
 	P = new SubProcess("Simplify",
-			   java.lang.System.getProperty("simplify",
-					"/usr/local/escjava/bin/Simplify"));
+		new String[] {
+		       java.lang.System.getProperty("simplify",
+					"/usr/local/escjava/bin/Simplify"),
+			"-noprune",
+			"-noplunge"}, // FIXME - make controllable
+		null);
 	eatPrompt();
     }
 

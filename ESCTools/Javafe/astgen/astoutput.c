@@ -17,15 +17,15 @@ void outputExpansion(FILE *o, Class *c, DirectiveListNode *d)
     nonnull = d->i.f.notnull && !isJavaPrimitiveType(d->i.f.type);
     if (d->i.f.notnullloc) {
       indent(o, d->indent);
-      fprintf(o, "//@ invariant %s!=javafe.util.Location.NULL\n", d->i.f.name);
+      fprintf(o, "//@ invariant %s != javafe.util.Location.NULL;\n", d->i.f.name);
     }
     if (d->i.f.syntax) {
       indent(o, d->indent);
-      fprintf(o, "//@ invariant %s.syntax\n", d->i.f.name);
+      fprintf(o, "//@ invariant %s.syntax;\n", d->i.f.name);
     }
     indent(o, d->indent);
     fprintf(o, "public %s%s%s %s;\n\n",
-	    (nonnull ? "/*@non_null*/ " : ""),
+	    (nonnull ? "/*@ non_null */ " : ""),
 	    d->i.f.type,
 	    (d->i.f.sequence ? VECTORSUFFIX : ""),
 	    d->i.f.name);
@@ -98,18 +98,18 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
     fprintf(o, "/**\n");
     indent(o, ind);
 
-    fprintf(o, " ** Construct a raw %s whose class invariant(s) have not\n",
+    fprintf(o, " * Construct a raw %s whose class invariant(s) have not\n",
 	    class->name);
     indent(o, ind);
-    fprintf(o, " ** yet been established.  It is the caller's job to\n");
+    fprintf(o, " * yet been established.  It is the caller's job to\n");
     indent(o, ind);
-    fprintf(o, " ** initialize the returned node's fields so that any\n");
+    fprintf(o, " * initialize the returned node's fields so that any\n");
     indent(o, ind);
-    fprintf(o, " ** class invariants hold.\n");
+    fprintf(o, " * class invariants hold.\n");
     indent(o, ind);
-    fprintf(o, " **/\n");
+    fprintf(o, " */\n");
     indent(o, ind);
-    fprintf(o, "//@ requires I_will_establish_invariants_afterwards\n");
+    fprintf(o, "//@ requires I_will_establish_invariants_afterwards;\n");
     indent(o, ind);
     fprintf(o, "protected %s() {}    //@ nowarn Invariant,NonNullInit\n\n", class->name);
 /*  } */
@@ -123,13 +123,13 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
     indent(o, ind);
     fprintf(o, "/** Return the number of children a node has. */\n");
     indent(o, ind);
-    fprintf(o, "//@ ensures \\result>=0\n");
+    fprintf(o, "//@ ensures \\result >= 0;\n");
     indent(o, ind); fprintf(o, "public abstract int childCount();\n\n");
 
     indent(o, ind);
     fprintf(o, "/** Return the first-but-ith child of a node. */\n");
     indent(o, ind);
-    fprintf(o, "//@ requires 0<=i\n");
+    fprintf(o, "//@ requires 0 <= i;\n");
     indent(o, ind);fprintf(o, "public abstract Object childAt(int i);\n\n");
 
     indent(o, ind);
@@ -151,7 +151,7 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
     indent(o, ind);
     fprintf(o,"as the argument.  See the design patterns book. */\n");
     indent(o, ind);
-    fprintf(o,"//@ requires v!=null\n");
+    fprintf(o,"//@ requires v != null;\n");
     indent(o, ind);
     if (visitorRoot) {
       /* assume arg result visitor has similar root */
@@ -160,15 +160,15 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
       strcat(visitorArgResultRoot, "ArgResult");
       fprintf(o, "public abstract void accept(%s v);\n\n", visitorRoot);
       indent(o, ind);
-      fprintf(o,"//@ requires v!=null\n");
-      fprintf(o,"//@ ensures \\result!=null\n");
+      fprintf(o,"//@ requires v != null;\n");
+      fprintf(o,"//@ ensures \\result != null;\n");
       fprintf(o, "public abstract Object accept(%s v, Object o);\n\n", visitorArgResultRoot);
     }
     else {
       fprintf(o, "public abstract void accept(" VISITORCLASS " v);\n\n");
       indent(o, ind);
-      fprintf(o,"//@ requires v!=null\n");
-      fprintf(o,"//@ ensures \\result!=null\n");
+      fprintf(o,"//@ requires v != null;\n");
+      fprintf(o,"//@ ensures \\result != null;\n");
       fprintf(o, "public abstract Object accept(" VISITORARGRESULTCLASS " v, Object o);\n\n");
     }
   }
@@ -350,12 +350,12 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
     FOREACHFIELD(c, d, classlist) {
       if (d->i.f.notnullloc) {
         indent(o, ind); 
-        fprintf(o, "//@ requires %s!=javafe.util.Location.NULL\n",
+        fprintf(o, "//@ requires %s != javafe.util.Location.NULL;\n",
 		d->i.f.name);
       }
       if (d->i.f.syntax) {
         indent(o, ind); 
-        fprintf(o, "//@ requires %s.syntax\n",
+        fprintf(o, "//@ requires %s.syntax;\n",
 		d->i.f.name);
       }
     }
@@ -367,7 +367,7 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
       }
     }
     indent(o, ind); 
-    fprintf(o, "//@ ensures \\result!=null\n");
+    fprintf(o, "//@ ensures \\result != null;\n");
 
     indent(o, ind); 
     fprintf(o, "public static %s make(", class->name);
@@ -388,7 +388,7 @@ void outputEndClass(FILE *o, Class *class, const char *text, int len,
 
     /* Output body of maker*/
     indent(o, ind+3);
-    fprintf(o, "//@ set I_will_establish_invariants_afterwards = true\n");
+    fprintf(o, "//@ set I_will_establish_invariants_afterwards = true;\n");
     indent(o, ind+3);
     fprintf(o, "%s %s = new %s();\n", class->name,
 	    rname, class->name);
@@ -435,14 +435,14 @@ void outputEndOfAstFile(const char *text, int len,
       if (c->c->superclass != NULL) { 
 	/* If superclass exists, gen visit method that dispatches to
 	   visit method of superclass. */
-	fprintf(visitorOutputFile, "  //@ requires x!=null\n");
+	fprintf(visitorOutputFile, "  //@ requires x != null;\n");
 	fprintf(visitorOutputFile, "  public void visit%s(%s x) {\n",
 		c->c->name, c->c->name);
 	fprintf(visitorOutputFile, "    visit%s(x);\n",
 		c->c->superclass->name);
 	fprintf(visitorOutputFile, "  }\n\n");
       } else /* Gen an abstract visit method */ {
-	fprintf(visitorOutputFile, "  //@ requires x!=null\n");
+	fprintf(visitorOutputFile, "  //@ requires x != null;\n");
 	fprintf(visitorOutputFile, "  public abstract void visit%s(%s x);\n\n",
 		c->c->name, c->c->name);
       }
@@ -477,16 +477,16 @@ void outputEndOfAstFile(const char *text, int len,
       if (c->c->superclass != NULL) { 
 	/* If superclass exists, gen visit method that dispatches to
 	   visit method of superclass. */
-	fprintf(visitorOutputFile, "  //@ requires x!=null\n");
-	fprintf(visitorOutputFile, "  //@ ensures \\result!=null\n");
+	fprintf(visitorOutputFile, "  //@ requires x != null;\n");
+	fprintf(visitorOutputFile, "  //@ ensures \\result != null;\n");
 	fprintf(visitorOutputFile, "  public Object visit%s(%s x, Object o) {\n",
 		c->c->name, c->c->name);
 	fprintf(visitorOutputFile, "    return visit%s(x, o);\n",
 		c->c->superclass->name);
 	fprintf(visitorOutputFile, "  }\n\n");
       } else /* Gen an abstract visit method */ {
-	fprintf(visitorOutputFile, "  //@ requires x!=null\n");
-	fprintf(visitorOutputFile, "  //@ ensures \\result!=null\n");
+	fprintf(visitorOutputFile, "  //@ requires x != null\n");
+	fprintf(visitorOutputFile, "  //@ ensures \\result != null;\n");
 	fprintf(visitorOutputFile, "  public abstract Object visit%s(%s x, Object o);\n\n",
 		c->c->name, c->c->name);
       }
@@ -496,7 +496,7 @@ void outputEndOfAstFile(const char *text, int len,
     fclose(visitorOutputFile);
   }
 
-  
+  int makeClass = 1;
   { /* Output constants */
     FILE *constOutputFile = fopen(TAGSBASECLASS ".java", "w");
 
@@ -507,12 +507,23 @@ void outputEndOfAstFile(const char *text, int len,
       
     /* Print header material */ 
     fwrite(text, len, 1, constOutputFile); /* Generic header. */
-    fprintf(constOutputFile, "public interface " TAGSBASECLASS " {\n");
+    if (!makeClass)
+	fprintf(constOutputFile, "public interface " TAGSBASECLASS " {\n");
+    else if (strcmp(tagBase,"0")==0) {
+	fprintf(constOutputFile, "public class " TAGSBASECLASS " {\n");
+    } else {
+	/* Should generalize this - the super class name is part of
+	   tagBase - but I'll wait until it is needed.
+	*/
+	fprintf(constOutputFile, "public class " TAGSBASECLASS " extends javafe.tc.TagConstants {\n");
+    }
   
     /* Output the tags */
     {
 	const char *previousTag = tagBase;
 	ClassListNode *c;
+	const char* prefix = "static public final ";
+        if (!makeClass) prefix = "";
 	for(c = classes; c != NULL; c = c->next) {
 	    int manualtag = FALSE;
 	    DirectiveListNode *d;
@@ -527,21 +538,49 @@ void outputEndOfAstFile(const char *text, int len,
 
 		indent(constOutputFile, 3);
 		if (previousTag == tagBase)
-		  fprintf(constOutputFile,"int %s = %s;\n",
-			  currentTag, tagBase);
+		  fprintf(constOutputFile,"%sint %s = %s;\n",
+			  prefix, currentTag, tagBase);
 		else {
-		    fprintf(constOutputFile, "int %s = %s + 1;\n",
-			    currentTag, previousTag);
+		    fprintf(constOutputFile, "%sint %s = %s + 1;\n",
+			    prefix, currentTag, previousTag);
 		    free(previousTag);
 		}
 		previousTag = currentTag;
 	    }
 	}
 	indent(constOutputFile, 3);
-	fprintf(constOutputFile, "int LAST_TAG = %s;\n",previousTag);
+	fprintf(constOutputFile, "%sint LAST_TAG = %s;\n",prefix,previousTag);
 	if (previousTag == tagBase) free(previousTag);
     }
+    if (makeClass) {
+	fprintf(constOutputFile,"\n\n    static public String toString(int tag) {\n");
+	fprintf(constOutputFile,"      switch (tag) {\n");
+	ClassListNode *c;
+	for(c = classes; c != NULL; c = c->next) {
+	    int manualtag = FALSE;
+	    DirectiveListNode *d;
+	    FOREACHDIRECTIVE(d,c->c->directives)
+	      if (d->tag == MANUALTAGDIRECTIVE) manualtag = TRUE;
+	    if (! manualtag && ! c->c->abstract) {
+		/* get name of tag in upper case */
+		int i, nlen = strlen(c->c->name);
+		char *currentTag = mkstr(c->c->name, nlen+1);
+		for(i = 0; i < nlen; i++)
+		  currentTag[i] = toupper(currentTag[i]);
 
+		indent(constOutputFile, 8);
+		fprintf(constOutputFile,"case %s: return \"%s\";\n",
+			  currentTag,currentTag);
+		free(currentTag);
+	    }
+	}
+	if (strcmp(tagBase,"0")==0) 
+	    fprintf(constOutputFile,"        default: return \"Unknown javafe GeneratedTag \" + tag; \n      }\n    }\n");
+	else
+	    /* This needs generalization - when it needs it */
+	    fprintf(constOutputFile,"        default: return javafe.tc.TagConstants.toString(tag); \n      }\n    }\n");
+
+    }
     fprintf(constOutputFile, "}\n");
     fclose(constOutputFile);
   }

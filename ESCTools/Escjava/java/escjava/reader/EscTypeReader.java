@@ -2,182 +2,240 @@
 
 package escjava.reader;
 
-
 import javafe.ast.CompilationUnit;
+import javafe.ast.LexicalPragmaVec;
+import javafe.ast.Modifiers;
+import javafe.ast.Identifier;
+import javafe.ast.Name;
+import javafe.ast.*;
 import javafe.ast.TypeDecl;
+import javafe.ast.TypeDeclVec;
+import javafe.tc.TypeSig;
 import javafe.ast.PrettyPrint;			// Debugging methods only
 import javafe.ast.StandardPrettyPrint;		// Debugging methods only
 import javafe.ast.DelegatingPrettyPrint;	// Debugging methods only
 import escjava.ast.EscPrettyPrint;		// Debugging methods only
+import javafe.util.Location;
+import escjava.ast.RefinePragma;
+import escjava.ast.*;
+import escjava.ast.TagConstants; // Resolves ambiguity
+import escjava.RefinementSequence;
 
+import escjava.AnnotationHandler;
 import javafe.genericfile.*;
 import javafe.parser.PragmaParser;
-
+import javafe.filespace.Tree;
 import javafe.filespace.Query;
 
 import javafe.util.Assert;
 import javafe.util.ErrorSet;
 
 import javafe.reader.*;
+import javafe.tc.OutsideEnv;
 
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Iterator;
 
 /**
- ** An EscTypeReader is a StandardTypeReader extended to understand
- ** .spec files.
- **/
+ * An <code>EscTypeReader</code> is a <code>StandardTypeReader</code>
+ * extended to understand ".spec" files.
+ */
 
-public class EscTypeReader extends StandardTypeReader {
-
-    /***************************************************
-     *                                                 *
-     * Private creation:			       *
-     *                                                 *
-     ***************************************************/
+public class EscTypeReader extends StandardTypeReader
+{
+    // Private creation
 
     /**
-     ** Create an ESCTypeReader from a query engine, a source
-     ** reader, and a binary reader.  All arguments must be non-null.<p>
-     **/
-    //@ requires engine!=null && srcReader!=null && binReader!=null;
-    protected EscTypeReader(Query engine, Reader srcReader,
-			      Reader binReader) {
-	super(engine, srcReader, binReader);
+     * Create an <code>ESCTypeReader</code> from a query engine, a
+     * source reader, and a binary reader.  All arguments must be
+     * non-null.
+     */
+    //@ requires engine != null && srcReader != null && binReader != null;
+    protected EscTypeReader(Query engine, Query srcEngine, 
+			CachedReader srcReader,
+			CachedReader binReader) {
+	super(engine, srcEngine, srcReader, binReader);
     }
 
 
-    /***************************************************
-     *                                                 *
-     * Public creation:				       *
-     *                                                 *
-     ***************************************************/
+    // Public creation
 
     /**
-     ** Create a EscTypeReader from a query engine, a source
-     ** reader, and a binary reader.  All arguments must be non-null.<p>
-     **/
-    //@ requires engine!=null && srcReader!=null && binReader!=null;
+     * Create a <code>EscTypeReader</code> from a query engine, a
+     * source reader, and a binary reader.  All arguments must be
+     * non-null.
+     */
+    //@ requires engine != null && srcReader != null && binReader != null;
     //@ ensures \result != null;
-    public static StandardTypeReader make(Query engine, Reader srcReader,
-			                  Reader binReader) {
-	return new EscTypeReader(engine, srcReader, binReader);
+    public static StandardTypeReader make(Query engine, 
+					Query srcEngine, CachedReader srcReader,
+					  CachedReader binReader) {
+	return new EscTypeReader(engine, srcEngine, srcReader, binReader);
     }
 
-
-
     /**
-     ** Create a EscTypeReader from a non-null query engine and a
-     ** pragma parser.  The pragma parser may be null.
-     **/
-    //@ requires Q!=null;
+     * Create a <code>EscTypeReader</code> from a non-null query
+     * engine and a pragma parser.  The pragma parser may be null.
+     */
+    //@ requires Q != null;
     //@ ensures \result != null;
-    public static StandardTypeReader make(Query Q,
-						PragmaParser pragmaP) {
-	Assert.precondition(Q!=null);
+    public static StandardTypeReader make(Query Q, Query sourceQ,
+			PragmaParser pragmaP, AnnotationHandler ah) {
+	Assert.precondition(Q != null);
 
-	return make(Q, new SrcReader(pragmaP), new BinReader());
+	return make(Q, sourceQ, new RefinementCachedReader(
+					new SrcReader(pragmaP)), 
+				new CachedReader(new BinReader()));
     }
 
-
     /**
-     ** Create a EscTypeReader using a given Java classpath for our
-     ** underlying Java file space and a given pragma parser.  If the
-     ** given path is null, the default Java classpath is used. <p>
-     **
-     ** A fatal error will be reported via <code>ErrorSet</code> if an
-     ** I/O error occurs while initially scanning the filesystem.<p>
-     **/
+     * Create a <code>EscTypeReader</code> using a given Java
+     * classpath for our underlying Java file space and a given pragma
+     * parser.  If the given path is null, the default Java classpath
+     * is used.
+     *
+     * <p> A fatal error will be reported via <code>ErrorSet</code> if
+     * an I/O error occurs while initially scanning the filesystem.
+     */
     //@ ensures \result != null;
-    public static StandardTypeReader make(String path,
-						PragmaParser pragmaP) {
+    public static StandardTypeReader make(String path, String srcPath,
+			    PragmaParser pragmaP, AnnotationHandler ah) {
 	if (path==null)
 	    path = javafe.filespace.ClassPath.current();
+	Query q = StandardTypeReader.queryFromClasspath(path);
+
+	Query srcq = srcPath == null ? q : 
+			StandardTypeReader.queryFromClasspath(srcPath);
 	
-	return make(StandardTypeReader.queryFromClasspath(path), pragmaP);
+	return make(q, srcq, pragmaP, ah);
     }
 
-
     /**
-     ** Create a EscTypeReader using a the default Java classpath
-     ** for our underlying Java file space and a given pragma
-     ** parser. <p>
-     **
-     ** A fatal error will be reported via <code>ErrorSet</code> if an
-     ** I/O error occurs while initially scanning the filesystem.<p>
-     **/
+     * Create a <code>EscTypeReader</code> using a the default Java
+     * classpath for our underlying Java file space and a given pragma
+     * parser.
+     *
+     * <p> A fatal error will be reported via <code>ErrorSet</code> if
+     * an I/O error occurs while initially scanning the filesystem.
+     */
     //@ ensures \result != null;
     public static StandardTypeReader make(PragmaParser pragmaP) {
-	return make((String)null, pragmaP);
+	return make((String)null, (String)null, pragmaP);
     }
 
-
     /**
-     ** Create a EscTypeReader using the default Java classpath
-     ** for our underlying Java file space and no pragma parser. <p>
-     **
-     ** A fatal error will be reported via <code>ErrorSet</code> if an
-     ** I/O error occurs while initially scanning the filesystem.<p>
-     **/
+     * Create a <code>EscTypeReader</code> using the default Java
+     * classpath for our underlying Java file space and no pragma
+     * parser.
+     *
+     * <p> A fatal error will be reported via <code>ErrorSet</code> if
+     * an I/O error occurs while initially scanning the filesystem.
+     */
     //@ ensures \result != null;
     public static StandardTypeReader make() {
 	return make((PragmaParser) null);
     }
 
 
-    /***************************************************
-     *                                                 *
-     * Existance/Accessibility:			       *
-     *                                                 *
-     ***************************************************/
+    // Existance/Accessibility
 
     /**
-     ** Return true iff the fully-qualified outside type P.T exists.
-     **/
+     * Return true iff the fully-qualified outside type P.T exists.
+     */
     public boolean exists(String[] P, String T) {
-	return super.exists(P, T)
-	    || (javaFileSpace.findFile(P, T, "spec")!=null);
+	if ( super.exists(P, T)) return true;
+	for (int i=0; i<activeSuffixes.length; ++i) {
+	    if (javaSrcFileSpace.findFile(P, T, activeSuffixes[i]) != null) {
+		return true;
+	    }
+	}
+	return false;
     }
 
+    public GenericFile findFirst(String[] P, String T) {
+	return javaSrcFileSpace.findFile(P,T,activeSuffixes);
+    }
 
-    /***************************************************
-     *                                                 *
-     * Reading:					       *
-     *                                                 *
-     ***************************************************/
+    public GenericFile findSrcFile(String[] P, String filename) {
+	return javaSrcFileSpace.findFile(P,filename);
+    }
+
+    public GenericFile findBinFile(String[] P, String filename) {
+	return javaFileSpace.findFile(P,filename);
+    }
+
+    // Finds source files
+    public ArrayList findFiles(String[] P) {
+	Enumeration e = javaSrcFileSpace.findFiles(P);
+	if (e == null) return null;
+	ArrayList a = new ArrayList();
+	while (e.hasMoreElements()) {
+	    Tree t = (Tree)e.nextElement();
+	    String s = t.getLabel();
+	    int p = s.lastIndexOf('.');
+	    if (p == -1) continue;
+	    String suffix = s.substring(p+1);
+	    for (int i=0; i<activeSuffixes.length; ++i) {
+		if (suffix.equals(activeSuffixes[i])) { 
+		    a.add(t.data); 
+		    break; 
+		}
+	    }
+        }
+	return a;
+    }
+
+    String[] activeSuffixes = { "refines-java", "refines-spec", "refines-jml",
+			  "java", "spec", "jml" };
+
+    String[] nonJavaSuffixes = { "refines-java", "refines-spec", "refines-jml",
+			  "spec", "jml",
+			  "java-refined", "spec-refined", "jml-refined" };
+
+    // Reading
+
+    public CompilationUnit read(GenericFile f, boolean avoidSpec) {
+	return super.read(f,avoidSpec);
+    }
 
     /**
-     ** Override StandardTypeReader read(String[], String, boolean)
-     ** method to include .spec files.
-     **/
+     * Override {@link StandardTypeReader#read(String[], String, boolean)}
+     * method to include ".spec" files.
+     */
     public CompilationUnit read(String[] P, String T,
 				boolean avoidSpec) {
 	// If a source exists and we wish to avoid specs, use it:
 	if (avoidSpec) {
 	    GenericFile src = locateSource(P, T, true);
-	    if (src!=null)
+	    if (src != null) {
 		return super.read(src, true);
+	    }
 	}
 
 	// If not, use spec file if available:
-	GenericFile spec = javaFileSpace.findFile(P, T, "spec");
-	if (spec!=null)
-	    return super.read(spec, false);
+	for (int i=0; i<activeSuffixes.length; ++i) {
+	    GenericFile spec = javaSrcFileSpace.findFile(P, T, activeSuffixes[i]);
+	    if (spec != null) {
+	        return read(spec, false);
+	    }
+	}
 
 	// Lastly, try source in spec mode then the binary:
 	GenericFile source = locateSource(P, T, true);
-	if (source!=null)
+	if (source != null)
 	    return super.read(source, false);
 	return super.read(P, T, avoidSpec);	// only a binary exists...
     }
 
-
     /**
-     ** Does a CompilationUnit contain a specOnly TypeDecl?
-     **/
-    //@ requires cu!=null;
+     * Does a CompilationUnit contain a specOnly TypeDecl?
+     */
+    //@ requires cu != null;
     boolean containsSpecOnly(CompilationUnit cu) {
 	for (int i=0; i<cu.elems.size(); i++) {
 	    TypeDecl d = cu.elems.elementAt(i);
-	    //@ assume d!=null;
+	    //@ assume d != null;
 
 	    if (d.specOnly)
 		return true;
@@ -187,15 +245,11 @@ public class EscTypeReader extends StandardTypeReader {
     }
 
 
-    /***************************************************
-     *                                                 *
-     * Test methods:				       *
-     *                                                 *
-     ***************************************************/
+    // Test methods
 
     //@ requires \nonnullelements(args);
     public static void main(String[] args)
-			throws java.io.IOException {
+            throws java.io.IOException {
 	if (args.length<2 || args.length>3
 	    || (args.length==3 && !args[2].equals("avoidSpec"))) {
 	    System.err.println("EscTypeReader: <package> <simple name>"

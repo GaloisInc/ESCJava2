@@ -39,6 +39,16 @@ public class Substitute {
     return doSubst(subst, e, new SetRef());
   }
 
+  //@ ensures e != null ==> \result != null;
+  public static Expr doSimpleSubst(/*@ non_null */ Hashtable subst, Expr e) {
+    if (e == null) {
+	return null;
+    }
+    return doSubst(subst, e, null);
+  }
+
+
+
   /**
    ** Does substitution on GCExprs union (resolved) SpecExprs. <p>
    **
@@ -50,7 +60,7 @@ public class Substitute {
    **/
 
   //@ modifies rhsVars.s;
-  //@ ensures \old(rhsVars.s) != null ==> rhsVars.s == \old(rhsVars.s);
+  //@ ensures rhsVars != null ==> \old(rhsVars.s) != null ==> rhsVars.s == \old(rhsVars.s);
   //@ ensures \result != null;
   private static Expr doSubst(/*@ non_null */ Hashtable subst, Expr e,
 			      /*@ non_null */ SetRef rhsVars) {
@@ -60,6 +70,15 @@ public class Substitute {
     /*************************************************************
      * Cases needed only for SpecExprs:
      */
+
+    case TagConstants.WILDREFEXPR:
+	ErrorSet.notImplemented(!escjava.Main.options().noNotCheckedWarnings,
+		e.getStartLoc(),"Wild-ref expression not yet implemented");
+	break;
+    case TagConstants.ARRAYRANGEREFEXPR:
+	ErrorSet.notImplemented(!escjava.Main.options().noNotCheckedWarnings,
+		e.getStartLoc(),"Array-range expression not yet implemented");
+	break;
 
     case TagConstants.ARRAYREFEXPR:
       {
@@ -159,10 +178,53 @@ public class Substitute {
 	break;
       }
 
-    case TagConstants.FORALL:
-    case TagConstants.EXISTS:
+    case TagConstants.NUM_OF:
       {
-	QuantifiedExpr qe = (QuantifiedExpr)e;
+	NumericalQuantifiedExpr qe = (NumericalQuantifiedExpr)e;
+
+	// this routine requires that the bound variables of the quantified
+	// expression not occur as left-hand sides of the substitution,
+	// so here's a run-time check of this condition
+	for(int i=0; i<qe.vars.size(); i++) {
+	  Assert.notFalse( !subst.contains( qe.vars.elementAt(i) ));
+	}
+
+	// the routine also requires that the variables in the right-hand
+	// sides of the substitution are not captured by the quantified
+	// expression, so here's a check for that
+	if (rhsVars != null) {
+	    if (rhsVars.s == null) {
+	      rhsVars.s = new Set();
+	      for (Enumeration enum = subst.elements(); enum.hasMoreElements(); ) {
+		Expr ee = (Expr)enum.nextElement();
+		rhsVars.s.union(freeVars(ee));
+	      }
+	    }
+	    for (int i = 0; i < qe.vars.size(); i++) {
+	      Assert.notFalse(!rhsVars.s.contains(qe.vars.elementAt(i)));
+	    }
+	}
+
+	ExprVec newNopats;
+	if (qe.nopats == null) {
+	  newNopats = null;
+	} else {
+	  newNopats = ExprVec.make(qe.nopats.size());
+	  for (int i = 0; i < qe.nopats.size(); i++) {
+	    newNopats.addElement(doSubst(subst, qe.nopats.elementAt(i), rhsVars));
+	  }
+	}
+	result = NumericalQuantifiedExpr.make( qe.sloc, qe.eloc, qe.quantifier,
+		  	   	      qe.vars, doSubst(subst,qe.expr,rhsVars),
+				      newNopats);
+	break;
+      }
+    case TagConstants.MAXQUANT:
+    case TagConstants.MIN:
+    case TagConstants.SUM:
+    case TagConstants.PRODUCT:
+      {
+	GeneralizedQuantifiedExpr qe = (GeneralizedQuantifiedExpr)e;
 
 	// this routine requires that the bound variables of the quantified
 	// expression not occur as left-hand sides of the substitution,
@@ -194,17 +256,70 @@ public class Substitute {
 	    newNopats.addElement(doSubst(subst, qe.nopats.elementAt(i), rhsVars));
 	  }
 	}
+	result = GeneralizedQuantifiedExpr.make( qe.sloc, qe.eloc, qe.quantifier,
+			  qe.vars, doSubst(subst,qe.expr,rhsVars),
+			    doSubst(subst, qe.rangeExpr,rhsVars),
+			  newNopats);
+	break;
+      }
+    case TagConstants.FORALL:
+    case TagConstants.EXISTS:
+      {
+	QuantifiedExpr qe = (QuantifiedExpr)e;
+
+	// this routine requires that the bound variables of the quantified
+	// expression not occur as left-hand sides of the substitution,
+	// so here's a run-time check of this condition
+	for(int i=0; i<qe.vars.size(); i++) {
+	  Assert.notFalse( !subst.contains( qe.vars.elementAt(i) ));
+	}
+
+	// the routine also requires that the variables in the right-hand
+	// sides of the substitution are not captured by the quantified
+	// expression, so here's a check for that
+	if (rhsVars != null) {
+	    if (rhsVars.s == null) {
+	      rhsVars.s = new Set();
+	      for (Enumeration enum = subst.elements(); enum.hasMoreElements(); ) {
+		Expr ee = (Expr)enum.nextElement();
+		rhsVars.s.union(freeVars(ee));
+	      }
+	    }
+	    for (int i = 0; i < qe.vars.size(); i++) {
+	      Assert.notFalse(!rhsVars.s.contains(qe.vars.elementAt(i)));
+	    }
+	}
+
+	ExprVec newNopats;
+	if (qe.nopats == null) {
+	  newNopats = null;
+	} else {
+	  newNopats = ExprVec.make(qe.nopats.size());
+	  for (int i = 0; i < qe.nopats.size(); i++) {
+	    newNopats.addElement(doSubst(subst, qe.nopats.elementAt(i), rhsVars));
+	  }
+	}
+if (newNopats != null && qe.pats != null) System.out.println("CANT HAVE BOTH PATS AND NOPATS"); // FIXME
 	result = QuantifiedExpr.make( qe.sloc, qe.eloc, qe.quantifier,
 		  	   	      qe.vars, doSubst(subst,qe.expr,rhsVars),
-				      newNopats);
+				      newNopats, qe.pats);
 	break;
       }
 	  
+    case TagConstants.RESEXPR:
+      {
+	Expr to = (Expr)subst.get( resexpr );
+	result = (to==null ? e : to);
+	break;
+      }
+    case TagConstants.THISEXPR:
+      {
+	Expr to = (Expr)subst.get( thisexpr );
+	result = (to==null ? e : to);
+	break;
+      }
     case TagConstants.TYPEEXPR:
     case TagConstants.LOCKSETEXPR:
-    case TagConstants.RESEXPR:
-    case TagConstants.WILDREFEXPR:
-    case TagConstants.THISEXPR:
     case TagConstants.CLASSLITERAL:
 
     case TagConstants.BOOLEANLIT: 
@@ -221,6 +336,14 @@ public class Substitute {
 	break;
       }
 	  
+    case TagConstants.NOTMODIFIEDEXPR:
+      {
+	NotModifiedExpr nme = (NotModifiedExpr)e;
+	result = NotModifiedExpr.make(nme.loc, 
+	    doSubst(subst, nme.expr, rhsVars));
+	break;
+      }
+
     case TagConstants.VARIABLEACCESS:
       {
 	VariableAccess va = (VariableAccess)e;
@@ -230,8 +353,12 @@ public class Substitute {
 	  // System.out.println("Doing subst on "+va.decl.id);
 	  result =  to;
 	} else {
-	  // System.out.println("Not doing subst on "+va.decl.id);
+	  // System.out.println("Not doing subst on "+va.decl.id + " " + va.decl);
 	  result = e;
+	  if (va.id == Identifier.intern("RES")) {
+		to = (Expr)subst.get(resexpr);
+		if (to != null) result = to;
+	  }
 	}
 	break;
       }
@@ -245,15 +372,52 @@ public class Substitute {
 	  for( int i=0; i<ne.exprs.size(); i++ ) {
 	    nu.addElement( doSubst( subst, ne.exprs.elementAt(i), rhsVars ) );
 	  }
-	  result =  NaryExpr.make(ne.sloc, ne.eloc, ne.op, nu);
+	  result =  NaryExpr.make(ne.sloc, ne.eloc, ne.op, ne.methodName, nu);
 	} else if (e instanceof BinaryExpr) {
 
 	  BinaryExpr be = (BinaryExpr)e;
 	  result = BinaryExpr.make(be.op, doSubst(subst,be.left,rhsVars),
 				   doSubst(subst,be.right,rhsVars), be.locOp);
+	} else if (e instanceof SetCompExpr) {
+	  SetCompExpr se = (SetCompExpr)e;
+	  // FIXME - how do bound vars affect substitution?
+	  return e;
+	} else if (e instanceof MethodInvocation) {
+	  MethodInvocation me = (MethodInvocation)e;
+	  ExprVec args = ExprVec.make(me.args.size());
+	  for (int i = 0; i< me.args.size(); ++i) {
+		Expr ee = me.args.elementAt(i);
+		args.addElement( doSubst(subst, ee, rhsVars));
+	  }
+	  MethodInvocation r = MethodInvocation.make(me.od, me.id, me.tmodifiers, me.locId, 
+			me.locOpenParen, args);
+	  r.decl = me.decl;
+	  result = r;
+	} else if (e instanceof NewArrayExpr) {
+	  NewArrayExpr me = (NewArrayExpr)e;
+	  ArrayInit init = me.init;
+	  // FIXME - need substitution
+	  //Expr init = doSubst(subst, me.init, rhsVars);
+	  result = NewArrayExpr.make(me.type,me.dims,init,
+			me.loc,me.locOpenBrackets);
+	} else if (e instanceof NewInstanceExpr) {
+	  NewInstanceExpr me = (NewInstanceExpr)e;
+	  ExprVec args = ExprVec.make(me.args.size());
+	  for (int i = 0; i< me.args.size(); ++i) {
+		Expr ee = me.args.elementAt(i);
+		args.addElement( doSubst(subst, ee, rhsVars));
+	  }
+	  Expr ee = me.enclosingInstance;
+	  if (ee != null) ee = doSubst(subst, ee, rhsVars);
+	  NewInstanceExpr r = NewInstanceExpr.make(ee,
+			me.locDot, me.type, args, me.anonDecl,
+			me.loc, me.locOpenParen);
+	  r.decl = me.decl;
+	  result = r;
 	} else {
 
-	    Assert.fail("Bad expr in Substitute.doSubst: "+e);
+	    Assert.fail("Bad expr in Substitute.doSubst: "+e+ " " 
+				+ Location.toString(e.getStartLoc()));
 	    return null; // dummy return
         }
       }
@@ -263,7 +427,8 @@ public class Substitute {
     return result;
   }
 
-
+  final static public Expr resexpr = ResExpr.make(Location.NULL);
+  final static public Expr thisexpr = ThisExpr.make(null,Location.NULL);
 
   /**
    ** Calculate the free variables of an expression or a GuardedCmd. <p>
