@@ -1,3 +1,0 @@
-#!/bin/csh -f
-
-awk '{ print toupper($1) "		javafe.ast." $1 }'

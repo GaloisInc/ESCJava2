@@ -1,6 +1,0 @@
-#!/bin/csh -f
-# usage: run FLAGS
-
-${ESCJ} -mt $* A.java 
-
-
