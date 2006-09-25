@@ -1,3 +1,4 @@
+// $Id$
 // This class is generated as part of the 2003 Revision of the ESC Tools
 // Author: David Cok
 

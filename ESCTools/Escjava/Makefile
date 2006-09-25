@@ -14,6 +14,8 @@ include ${TOP}/Makefile.defs
 # JAVAFE_ROOT, JAVAFE_SOURCE_DIR
 # (Building Escjava relies on the AST building tools in ${JAVAFE_ROOT}/astgen)
 
+JAVA_VM_FLAGS ?=-Xmx512m
+
 # Various conventional UNIX tools are used in the following, including
 # cc in preprocess only mode.  Also, the "astgen" and "astfilelist"
 # programs in Javafe are used here.
@@ -324,14 +326,17 @@ clean_escjava_backpred:
 ## FIXME - Check all these
 
 .PHONY: clean clean_escjava clean_tests clean_classfiles \
-	clean_docs clean_misc clean_archives
+	clean_docs clean_misc clean_archives clean_vcGeneration
 
 clean: clean_classfiles clean_docs clean_escjava clean_tests \
 	clean_misc clean_archives \
 	clean_mocha
 
-clean_escjava: clean_escjava_ast clean_escjava_backpred clean_jniw
+clean_escjava: clean_escjava_ast clean_escjava_backpred clean_vcGeneration clean_jniw
 	rm -f ${VERSION_FILE} ${VERSION_TEMP}
+
+clean_vcGeneration:
+	(cd java/escjava/vcGeneration; ./clean.sh)
 
 clean_tests:
 	${MAKE} -C ${TESTSOURCEDIRECTORY} clean
@@ -415,7 +420,7 @@ test_escjava_parser:
 self_typecheck:
 	JAVA_VM_FLAGS=-Xmx256m \
 	${ESCJ} -classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
-	    -sourcepath "$(call canonicalize,$(SOURCEPATH):$(SPECS):$(JUNIT_SOURCEPATH))" \
+		-sourcepath "$(call canonicalize,$(SOURCEPATH):$(SPECS):$(JUNIT_SOURCEPATH))" \
 		-specs "${call canonicalize,${ESCTOOLS_ROOT}/specs}" \
 		-source 1.4 -typecheck -quiet \
 		${PACKAGE_LIST}
@@ -429,19 +434,28 @@ test_matrix:
 
 self_test_nocheck: build
 	JAVA_VM_FLAGS=-Xmx256m \
-	${ESCJ} -classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
+		${ESCJ} -classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
 		-sourcepath "$(call canonicalize,${SOURCEPATH})" \
 		-vclimit 1000000 \
 		-nocheck -source 1.4 -quiet -nosemicolonwarnings \
 		$(PACKAGE_LIST)
 
 self_test: build
-	JAVA_VM_FLAGS=-Xmx512m \
+	@echo PROVER_KILL_TIME=${PROVER_KILL_TIME}
+	@echo JAVA_VM_FLAGS=${JAVA_VM_FLAGS}
+	export JAVA_VM_FLAGS=$(JAVA_VM_FLAGS); \
 	${ESCJ} -classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
 		-sourcepath "$(call canonicalize,${SOURCEPATH})" \
 		-vclimit 1000000 \
 		-source 1.4 -quiet -nosemicolonwarnings \
+		$(ESCJ_EXTRA_FLAGS) \
 		$(PACKAGE_LIST)
+
+# Chalin: temporary custom targets based on self_test.
+self_test0:
+	unset CLASSPATH; \
+	export JAVA_VM_FLAGS=-Xmx1024m; \
+	${MAKE} ESCJ_EXTRA_FLAGS+=" -nowarn Modifies" PROVER_KILL_TIME=7 self_test
 
 ## FIXME - is this used? should it be?
 ## This tests a binary release that is present in the RELTEMP directory,

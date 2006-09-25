@@ -1,2 +1,5 @@
-escj *.java
+#!/bin/sh
+# usage: run FLAGS
+
+${ESCJ} $* *.java
 

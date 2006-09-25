@@ -26,6 +26,8 @@ include Makefile.defs
 ##  binary-release - makes the tar file constituting a binary release
 ##  releases-notests - makes both releases without doing any tests
 ##  releases - makes both releases with tests after
+##  jmlc - run jmlc on source files in Javafe, Escjava and Utils
+##  self_typecheck - run escjava2's typechecker on all source files
 ##
 ## You can run each of these in a subdirectory and only apply it to
 ## the code in that subdirectory, if you like.  Note though, that the
@@ -211,7 +213,7 @@ cleanup:
 ## Specifications
 
 $(ESCJAVA2_SPECS_JAR):
-	(cd specs; jar cf $(ESCJAVA2_SPECS_JAR) .)
+	( cd specs; jar cf $(ESCJAVA2_SPECS_JAR) . )
 
 # RDG: We are not shipping jmlspecs.jar right now because the large VC
 # conditions generated for the full JML specs can make our theorem prover choke
@@ -350,6 +352,19 @@ jmlc_ej: ${ESCJAVA_CLASSFILES4RAC}
 		JMLC_FLAGS+=' --excludefiles "^(SPVC)\.java"' \
 		jmlc1
 
+# Apply jmlc to one TARGET at a time; class files are to be saved in JMLC_CLASSFILES_DIR.
+jmlc1:
+	$(JMLC) \
+	  --sourcepath "$(call canonicalize,$(SOURCEPATH):$(SPECS))" \
+	  --classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
+	  -d $(JMLC_CLASSFILES_DIR) \
+	  -a -A --purity \
+	  -n \
+	  --keepGoing --recursive \
+	  $(JMLC_FLAGS) \
+	  $(TARGET) \
+	  && touch .jmlc
+
 # Some files cannot be compiled under the current/old semantics because the generated code
 # has a try/catch block that is beyond the limits of the VM.  Hence, we compile these files
 # separately using the new semantics (-T).
@@ -375,7 +390,8 @@ ${JMLC_CLASSFILES}:
 	mkdir ${JMLC_CLASSFILES}
 
 #..............................................................................
-# Run jmlc on each file one by one (which seems to give us the best results for now)
+# Run jmlc on each file one by one (this target is superceded by target 'jmlc').
+
 jmlc1b1: build jmlc_javafe_1b1 jmlc_escjava_1b1
 
 jmlc_javafe_1b1:
@@ -391,37 +407,6 @@ jmlc_escjava_1b1:
 		${MAKE} JMLC_CLASSFILES_DIR=${ESCJAVA_CLASSFILES4RAC} TARGET=$$f jmlc1; \
 	done
 	${MAKE} jmlc_escjava_cleanup
-
-# Apply jmlc to one TARGET at a time; class files are to be saved in JMLC_CLASSFILES_DIR.
-jmlc1:
-	$(JMLC) \
-	  --sourcepath "$(call canonicalize,$(SOURCEPATH):$(SPECS))" \
-	  --classpath "$(call canonicalize,${ESCJAVA_BUILD_CLASSPATH}:)${CLASSPATH}" \
-	  -d $(JMLC_CLASSFILES_DIR) \
-	  -a -A --purity \
-	  -n \
-	  --keepGoing --recursive \
-	  $(JMLC_FLAGS) \
-	  $(TARGET) \
-	  && touch .jmlc
-
-# If the new jmlc target works, then the following three targets will no longer be
-# necessary. --PC
-
-# Next three `cleanup' targets will remove zero-sized class files that JMLc 
-# leaves hanging around when it dies during the compilation of a file.
-jmlc_javafe_cleanup:
-	${MAKE} JMLC_CLASSFILES_DIR=${JAVAFE_CLASSFILES4RAC} post_jmlc_cleanup
-jmlc_escjava_cleanup:
-	${MAKE} JMLC_CLASSFILES_DIR=${ESCJAVA_CLASSFILES4RAC} post_jmlc_cleanup
-
-post_jmlc_cleanup:
-	@for f in `find $(JMLC_CLASSFILES_DIR) -name *.class`; do \
-		if [ ! -s $$f ]; then \
-			echo "  removing zero-sized class file: $$f"; \
-			rm $$f; \
-		fi; \
-	done
 
 ################################################################################
 ## Rules to build various release types
@@ -548,8 +533,8 @@ srcjar:
 	cp -r ${ESCJAVA2_SPECS} ${RELTEMP}/sub/specs
 	cp -r ${ORIG_SRC_SPECS} ${RELTEMP}/sub/original-specs
 	mkdir -p ${RELTEMP}/sub/junitutils
-	(cd ${ESCTOOLS_ROOT}/Utils/junitutils; \
-	  cp `find . -name '*.java'` ${RELTEMP}/sub/junitutils)
+	( cd ${ESCTOOLS_ROOT}/Utils/junitutils; \
+	  cp `find . -name '*.java'` ${RELTEMP}/sub/junitutils )
 	( cd ${RELTEMP}/sub; rm -rf `find . -name CVS`; )
 	( cd ${RELTEMP}/sub; jar cf ${RELSRCJAR} *; )
 	rm -rf ${RELTEMP}/sub
@@ -688,7 +673,7 @@ generate-specs-archive:
 	cp -r ${ORIG_SRC_SPECS} ${RELTEMP}
 	-find ${RELTEMP}/specs -name "CVS" -exec rm -rf {} \;  > /dev/null 2>&1
 	-find ${RELTEMP}/original-specs -name "CVS" -exec rm -rf {} \;  > /dev/null 2>&1
-	(cd ${RELTEMP}; tar cjf ${PATCH_DIR}/${SPECS_TAR} specs original-specs;) 
+	( cd ${RELTEMP}; tar cjf ${PATCH_DIR}/${SPECS_TAR} specs original-specs; )
 	rm -rf ${RELTEMP}/specs ${RELTEMP}/original-specs
 
 generate-toplevel-archive: clean
@@ -711,7 +696,7 @@ generate-toplevel-archive: clean
 	cp ${ESCTOOLS_ROOT}/Escjava/release/master/bin/Simplify-1.5.4.macosx \
 		${RELTEMP}/ESCTools/Escjava/release/master/bin
 	-find ${RELTEMP}/ESCTools -name "CVS" -exec rm -rf {} \;  > /dev/null  2>&1
-	(cd ${RELTEMP}/ESCTools; tar cjf ${PATCH_DIR}/${TOPLEVEL_TAR} . ;) 
+	( cd ${RELTEMP}/ESCTools; tar cjf ${PATCH_DIR}/${TOPLEVEL_TAR} . ; )
 	rm -rf ${RELTEMP}/ESCTools
 
 ## Until we can figure out how to have diff/patch detect and generate

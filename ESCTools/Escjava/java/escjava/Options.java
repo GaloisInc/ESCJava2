@@ -272,7 +272,8 @@ public class Options extends javafe.SrcToolOptions {
             { "-vc2dot", "Output the gc tree in dot format" },
             { "-pToDot", "Output the translation of the gc tree in dot format" },
 	    { "-idc", "Check that assertions are defined (i.e. not undefined) in the sense of the new JML semantics."},
-	    { "-debug", "Turn on for selected modules."}
+	    { "-debug", "Turn on for selected modules."},
+	    { "-warnUnsoundIncomplete", "Turn on warnings about locations where ESC/Java2 reasons unsoundly or incompletely." }
     //$$
     };
 
@@ -293,6 +294,7 @@ public class Options extends javafe.SrcToolOptions {
     // -> by default simplify is used when the option -Prover is not given.
     public boolean useSammy = false;
     public boolean useHarvey = false;
+    public boolean useCvc3 = false;
 
     // use the new verification conditions generator
     public boolean nvcg = false;
@@ -572,6 +574,8 @@ public class Options extends javafe.SrcToolOptions {
 
     // Debug flag that dumps the fields of each class
     public boolean showFields = false;
+    
+    public boolean warnUnsoundIncomplete = false;
 
     /**
      * Number of stages to run.  The stages currently in order are:
@@ -819,6 +823,8 @@ public class Options extends javafe.SrcToolOptions {
                     useSammy = true;
                 if (optionChecked.equals("harvey"))
                     useHarvey = true;
+                if (optionChecked.equals("cvc3"))
+                    useCvc3 = true;
 
                 newOffset++;
             }
@@ -833,6 +839,8 @@ public class Options extends javafe.SrcToolOptions {
                     useSammy = true;
                 if (optionChecked.equals("harvey"))
                     useHarvey = true;
+                if (optionChecked.equals("cvc3"))
+                    useCvc3 = true;
 
                 newOffset++;
             }
@@ -847,6 +855,8 @@ public class Options extends javafe.SrcToolOptions {
                     useSammy = true;
                 if (optionChecked.equals("harvey"))
                     useHarvey = true;
+                if (optionChecked.equals("cvc3"))
+                    useCvc3 = true;
 
                 newOffset++;
             }
@@ -1378,8 +1388,10 @@ public class Options extends javafe.SrcToolOptions {
         } else if (option.equals("-usethrowable")) {
             useThrowable = true;
             return offset;
+        }else if (option.equals("-warnunsoundincomplete")){
+        	warnUnsoundIncomplete = true;
+        	return offset;
         }
-
         // Pass on unrecognized options:
         return super.processOption(option, args, offset);
     }
